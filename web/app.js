@@ -3,6 +3,7 @@ let currentGallery = '';
 let currentFiles = [];
 let currentIndex = 0;
 let currentDir = '';
+let currentView = 'dir';
 let galleryPassword = '';
 let galleryHasPassword = false;
 let isLoggedIn = false;
@@ -30,6 +31,7 @@ const fileInput = document.getElementById('file-input');
 const uploadArea = document.getElementById('upload-area');
 const uploadDropzone = document.getElementById('upload-dropzone');
 const uploadProgress = document.getElementById('upload-progress');
+const viewToggleBtn = document.getElementById('view-toggle-btn');
 const directoryList = document.getElementById('directory-list');
 const directoryBreadcrumb = document.getElementById('directory-breadcrumb');
 const galleryGrid = document.getElementById('gallery-grid');
@@ -54,6 +56,7 @@ window.addEventListener('DOMContentLoaded', () => {
     const urlParams = new URLSearchParams(window.location.search);
     const galleryParam = urlParams.get('gallery');
     const dirParam = urlParams.get('dir');
+    const viewParam = urlParams.get('view');
     
     // Setup event listeners
     if (loadGalleryBtn) {
@@ -122,7 +125,7 @@ window.addEventListener('DOMContentLoaded', () => {
     
     if (galleryParam) {
         if (galleryInput) galleryInput.value = galleryParam;
-        loadGallery(galleryParam, dirParam || '');
+        loadGallery(galleryParam, dirParam || '', viewParam || 'dir');
     } else {
         // No gallery loaded - show selector in empty state
         if (gallerySelector) gallerySelector.style.display = 'flex';
@@ -248,9 +251,10 @@ function updateDeleteButtonsVisibility() {
 }
 
 // Load gallery
-async function loadGallery(galleryName, dir = '') {
+async function loadGallery(galleryName, dir = '', view = currentView) {
     currentGallery = galleryName;
     currentDir = normalizeRelativePath(dir || '');
+    currentView = view === 'flat' ? 'flat' : 'dir';
     if (galleryTitle) {
         galleryTitle.textContent = galleryName;
         galleryTitle.style.display = 'block';
@@ -265,12 +269,14 @@ async function loadGallery(galleryName, dir = '') {
     
     try {
         const dirParam = currentDir ? `&dir=${encodeURIComponent(currentDir)}` : '';
-        const response = await fetch(`api/index.php?action=list&gallery=${encodeURIComponent(galleryName)}${dirParam}`);
+        const viewParam = currentView ? `&view=${encodeURIComponent(currentView)}` : '';
+        const response = await fetch(`api/index.php?action=list&gallery=${encodeURIComponent(galleryName)}${dirParam}${viewParam}`);
         const data = await response.json();
         
         if (data.success) {
             currentFiles = data.files;
             currentDir = normalizeRelativePath(data.dir || '');
+            currentView = data.view === 'flat' ? 'flat' : 'dir';
             galleryHasPassword = data.hasPassword || false;
             
             // Handle password based on gallery's password status
@@ -293,9 +299,10 @@ async function loadGallery(galleryName, dir = '') {
                 }
             }
             
-            displayDirectories(data.directories || []);
-            displayGallery(data.files);
-            updateBreadcrumb();
+            const hasDirectories = displayDirectories(currentView === 'dir' ? data.directories || [] : []);
+            displayGallery(data.files, hasDirectories);
+            updateBreadcrumb(hasDirectories);
+            updateViewToggleLabel();
             updateLoginUI();
 
             if (galleryInfo) galleryInfo.style.display = 'flex';
@@ -336,8 +343,10 @@ async function loadGallery(galleryName, dir = '') {
 }
 
 // Display gallery
-function displayGallery(files) {
-    const hasDirectories = directoryList && directoryList.children.length > 0 && directoryList.style.display !== 'none';
+function displayGallery(files, hasDirectoriesOverride) {
+    const hasDirectories = typeof hasDirectoriesOverride === 'boolean'
+        ? hasDirectoriesOverride
+        : (directoryList && directoryList.children.length > 0 && directoryList.style.display !== 'none');
     if (files.length === 0 && !hasDirectories) {
         galleryGrid.innerHTML = '<div class="empty-state"><p>This gallery is empty</p></div>';
         return;
@@ -468,7 +477,8 @@ function displayDirectories(directories) {
     
     if (!directories || directories.length === 0) {
         directoryList.style.display = 'none';
-        return;
+        updateViewToggleVisibility(false);
+        return false;
     }
     
     directoryList.style.display = 'grid';
@@ -489,15 +499,29 @@ function displayDirectories(directories) {
         card.appendChild(name);
         
         card.onclick = () => {
-            loadGallery(currentGallery, dir.path);
+            loadGallery(currentGallery, dir.path, currentView);
             const params = new URLSearchParams(window.location.search);
             params.set('gallery', currentGallery);
             params.set('dir', dir.path);
+            if (currentView && currentView !== 'dir') {
+                params.set('view', currentView);
+            } else {
+                params.delete('view');
+            }
             window.history.pushState({}, '', `?${params.toString()}`);
         };
         
         directoryList.appendChild(card);
     });
+
+    updateViewToggleVisibility(true);
+    return true;
+}
+
+function updateViewToggleVisibility(hasDirectories) {
+    if (!viewToggleBtn) return;
+    const shouldShow = currentView === 'flat' || hasDirectories || !!currentDir;
+    viewToggleBtn.style.display = shouldShow ? 'inline-flex' : 'none';
 }
 
 // Download ZIP functionality
@@ -530,6 +554,59 @@ if (uploadBtn) {
             uploadArea.scrollIntoView({ behavior: 'smooth', block: 'start' });
         }
     });
+}
+
+// View toggle
+if (viewToggleBtn) {
+    viewToggleBtn.addEventListener('click', () => {
+        const nextView = currentView === 'flat' ? 'dir' : 'flat';
+        applyView(nextView);
+    });
+}
+
+// Click gallery title to jump to gallery root (reloads page)
+if (galleryTitle) {
+    galleryTitle.addEventListener('click', () => {
+        if (!currentGallery) return;
+        const params = new URLSearchParams();
+        params.set('gallery', currentGallery);
+        if (currentView && currentView !== 'dir') {
+            params.set('view', currentView);
+        }
+        // Reload to ensure fresh load at root
+        window.location.href = `?${params.toString()}`;
+    });
+}
+
+function applyView(view) {
+    currentView = view === 'flat' ? 'flat' : 'dir';
+    updateViewToggleLabel();
+    pushStateWithParams();
+    loadGallery(currentGallery, currentDir, currentView);
+}
+
+function updateViewToggleLabel() {
+    if (!viewToggleBtn) return;
+    viewToggleBtn.textContent = currentView === 'flat'
+        ? 'Show folders'
+        : 'Show all images in all folders';
+}
+
+function pushStateWithParams(overrideDir) {
+    const params = new URLSearchParams(window.location.search);
+    if (currentGallery) params.set('gallery', currentGallery);
+    const dirToUse = typeof overrideDir === 'string' ? normalizeRelativePath(overrideDir) : currentDir;
+    if (dirToUse) {
+        params.set('dir', dirToUse);
+    } else {
+        params.delete('dir');
+    }
+    if (currentView && currentView !== 'dir') {
+        params.set('view', currentView);
+    } else {
+        params.delete('view');
+    }
+    window.history.pushState({}, '', `?${params.toString()}`);
 }
 
 if (uploadDropzone) {
@@ -975,10 +1052,18 @@ function getFileUrl(filePath) {
     return `api/file.php?gallery=${encodeURIComponent(currentGallery)}&file=${encodeURIComponent(filePath)}`;
 }
 
-function updateBreadcrumb() {
+function updateBreadcrumb(hasDirectories) {
     if (!directoryBreadcrumb) return;
     
     directoryBreadcrumb.innerHTML = '';
+    
+    // Only show breadcrumbs when inside a subdirectory
+    const shouldShow = !!currentDir;
+    if (!shouldShow) {
+        directoryBreadcrumb.style.display = 'none';
+        return;
+    }
+    
     const crumbs = [];
     
     const rootCrumb = document.createElement('button');
@@ -987,10 +1072,7 @@ function updateBreadcrumb() {
     rootCrumb.textContent = currentGallery || 'Home';
     rootCrumb.onclick = () => {
         loadGallery(currentGallery, '');
-        const params = new URLSearchParams(window.location.search);
-        params.set('gallery', currentGallery);
-        params.delete('dir');
-        window.history.pushState({}, '', `?${params.toString()}`);
+        pushStateWithParams();
     };
     crumbs.push(rootCrumb);
     
@@ -1005,11 +1087,8 @@ function updateBreadcrumb() {
             btn.className = 'breadcrumb-btn';
             btn.textContent = part;
             btn.onclick = () => {
-                loadGallery(currentGallery, path);
-                const params = new URLSearchParams(window.location.search);
-                params.set('gallery', currentGallery);
-                params.set('dir', path);
-                window.history.pushState({}, '', `?${params.toString()}`);
+                loadGallery(currentGallery, path, currentView);
+                pushStateWithParams(path);
             };
             crumbs.push(btn);
         });

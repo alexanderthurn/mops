@@ -39,6 +39,7 @@ switch ($action) {
 function handleList() {
     $gallery = $_GET['gallery'] ?? '';
     $dir = $_GET['dir'] ?? '';
+    $view = $_GET['view'] ?? 'dir';
     
     if (empty($gallery)) {
         http_response_code(400);
@@ -64,13 +65,16 @@ function handleList() {
         return;
     }
     
-    $listing = listGalleryDirectory($gallery, $dir);
+    $listing = ($view === 'flat')
+        ? ['dirs' => [], 'files' => scanGallery($gallery, $dir)]
+        : listGalleryDirectory($gallery, $dir);
     $hasPassword = file_exists($galleryPath . '/.password');
     
     echo json_encode([
         'success' => true,
         'gallery' => $gallery,
         'dir' => $dir,
+        'view' => $view === 'flat' ? 'flat' : 'dir',
         'directories' => $listing['dirs'],
         'files' => $listing['files'],
         'hasPassword' => $hasPassword

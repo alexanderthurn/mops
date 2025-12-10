@@ -36,6 +36,9 @@
             <div class="header-right" id="header-right" style="display: none;">
                 <button id="login-toggle" class="btn-secondary login-toggle" aria-expanded="false" style="display: none;">Login</button>
                 <div class="header-actions" id="header-actions" style="display: none;">
+                    <button id="view-toggle-btn" class="btn-secondary" aria-label="Toggle view mode" style="display: none;">
+                        Expand all images in all folders
+                    </button>
                     <button id="upload-btn" class="btn-primary">Upload</button>
                     <button id="close-upload-btn" class="btn-secondary" style="display: none;">Close</button>
                 </div>
@@ -79,7 +82,9 @@
                 <div id="upload-progress" class="upload-progress"></div>
             </div>
 
-            <div id="directory-breadcrumb" class="directory-breadcrumb" style="display: none;"></div>
+            <div class="directory-bar">
+                <div id="directory-breadcrumb" class="directory-breadcrumb" style="display: none;"></div>
+            </div>
             <div id="directory-list" class="directory-list" style="display: none;"></div>
 
             <div id="gallery-grid" class="gallery-grid"></div>
