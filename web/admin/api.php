@@ -39,6 +39,10 @@ switch ($action) {
         handleDeleteGallery();
         break;
     
+    case 'rename_gallery':
+        handleRenameGallery();
+        break;
+
     case 'change_admin_password':
         handleChangeAdminPassword();
         break;
@@ -311,6 +315,81 @@ function handleDeleteGallery() {
     } else {
         http_response_code(500);
         echo json_encode(['error' => 'Failed to delete gallery']);
+    }
+}
+
+function handleRenameGallery() {
+    requireAdmin();
+
+    $oldName = $_POST['old_name'] ?? '';
+    $newName = $_POST['new_name'] ?? '';
+
+    if (empty($oldName) || empty($newName)) {
+        http_response_code(400);
+        echo json_encode(['error' => 'Old and new gallery names are required']);
+        return;
+    }
+
+    $sanitizedNew = sanitizeGalleryName($newName);
+    if ($sanitizedNew !== $newName) {
+        http_response_code(400);
+        echo json_encode(['error' => 'Invalid gallery name. Only alphanumeric, underscore, and hyphen allowed.']);
+        return;
+    }
+
+    // Prevent renaming to the same name (including case-only changes)
+    if (strcasecmp($oldName, $sanitizedNew) === 0) {
+        http_response_code(400);
+        echo json_encode(['error' => 'New gallery name must be different']);
+        return;
+    }
+
+    $oldPath = getGalleryPath($oldName);
+    $newPath = getGalleryPath($sanitizedNew);
+
+    if (!is_dir($oldPath)) {
+        http_response_code(404);
+        echo json_encode(['error' => 'Original gallery not found']);
+        return;
+    }
+
+    if (is_dir($newPath)) {
+        http_response_code(400);
+        echo json_encode(['error' => 'A gallery with the new name already exists']);
+        return;
+    }
+
+    // Handle case-insensitive file systems by renaming via a temporary name if needed
+    $renameSource = $oldPath;
+    $renameTarget = $newPath;
+    $tempPath = null;
+    if (strtolower($oldPath) === strtolower($newPath)) {
+        $tempPath = $oldPath . '_tmp_' . uniqid();
+        if (!rename($oldPath, $tempPath)) {
+            http_response_code(500);
+            echo json_encode(['error' => 'Failed to prepare gallery for renaming']);
+            return;
+        }
+        $renameSource = $tempPath;
+    }
+
+    if (rename($renameSource, $renameTarget)) {
+        if ($tempPath && is_dir($renameSource)) {
+            // Cleanup temp path if it still exists for some reason
+            @rmdir($renameSource);
+        }
+        echo json_encode([
+            'success' => true,
+            'message' => 'Gallery renamed successfully',
+            'gallery' => $sanitizedNew
+        ]);
+    } else {
+        // If we used a temp path, try to roll back
+        if ($tempPath && is_dir($renameSource)) {
+            @rename($renameSource, $oldPath);
+        }
+        http_response_code(500);
+        echo json_encode(['error' => 'Failed to rename gallery']);
     }
 }
 

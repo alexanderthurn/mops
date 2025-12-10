@@ -526,6 +526,35 @@ function displayGalleries(galleries) {
             if (passwordModal) passwordModal.style.display = 'flex';
         };
         
+        const renameBtn = document.createElement('button');
+        renameBtn.className = 'btn-secondary';
+        renameBtn.textContent = 'Rename';
+        renameBtn.onclick = () => {
+            const newName = prompt('Enter a new gallery name', gallery.name);
+            if (!newName) {
+                return;
+            }
+            const trimmed = newName.trim();
+            if (!trimmed) {
+                alert('Gallery name cannot be empty');
+                return;
+            }
+            if (!/^[a-zA-Z0-9_-]+$/.test(trimmed)) {
+                alert('Invalid gallery name. Use letters, numbers, underscore, or hyphen.');
+                return;
+            }
+            if (trimmed === gallery.name) {
+                alert('Please choose a different name');
+                return;
+            }
+            const exists = galleries.some(g => g.name.toLowerCase() === trimmed.toLowerCase());
+            if (exists) {
+                alert('A gallery with that name already exists');
+                return;
+            }
+            renameGallery(gallery.name, trimmed);
+        };
+
         const deleteBtn = document.createElement('button');
         deleteBtn.className = 'btn-danger';
         deleteBtn.textContent = 'Delete';
@@ -537,6 +566,7 @@ function displayGalleries(galleries) {
         
         actions.appendChild(viewBtn);
         actions.appendChild(passwordBtn);
+        actions.appendChild(renameBtn);
         actions.appendChild(deleteBtn);
         
         card.appendChild(info);
@@ -567,6 +597,32 @@ async function deleteGallery(galleryName) {
     } catch (error) {
         console.error('Delete gallery error:', error);
         alert('Failed to delete gallery');
+    }
+}
+
+// Rename gallery
+async function renameGallery(oldName, newName) {
+    try {
+        const formData = new FormData();
+        formData.append('action', 'rename_gallery');
+        formData.append('old_name', oldName);
+        formData.append('new_name', newName);
+
+        const response = await fetch('api.php?action=rename_gallery', {
+            method: 'POST',
+            body: formData
+        });
+
+        const data = await response.json();
+
+        if (data.success) {
+            loadGalleries();
+        } else {
+            alert('Error: ' + (data.error || 'Failed to rename gallery'));
+        }
+    } catch (error) {
+        console.error('Rename gallery error:', error);
+        alert('Failed to rename gallery');
     }
 }
 
