@@ -35,9 +35,12 @@ const downloadZipBtn = document.getElementById('download-zip-btn');
 const uploadBtn = document.getElementById('upload-btn');
 const closeUploadBtn = document.getElementById('close-upload-btn');
 const fileInput = document.getElementById('file-input');
+const dirInput = document.getElementById('dir-input');
 const uploadArea = document.getElementById('upload-area');
 const uploadDropzone = document.getElementById('upload-dropzone');
 const uploadProgress = document.getElementById('upload-progress');
+const uploadFilesBtn = document.getElementById('upload-files-btn');
+const uploadFolderBtn = document.getElementById('upload-folder-btn');
 const viewToggleBtn = document.getElementById('view-toggle-btn');
 const directoryList = document.getElementById('directory-list');
 const directoryBreadcrumb = document.getElementById('directory-breadcrumb');
@@ -793,11 +796,35 @@ if (uploadDropzone) {
     });
 }
 
+if (uploadFilesBtn) {
+    uploadFilesBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        if (!isLoggedIn) return;
+        if (fileInput) fileInput.click();
+    });
+}
+
+if (uploadFolderBtn) {
+    uploadFolderBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        if (!isLoggedIn) return;
+        if (dirInput) dirInput.click();
+    });
+}
+
 if (fileInput) {
     fileInput.addEventListener('change', (e) => {
         const files = Array.from(e.target.files);
         uploadFiles(files);
         fileInput.value = '';
+    });
+}
+
+if (dirInput) {
+    dirInput.addEventListener('change', (e) => {
+        const files = Array.from(e.target.files);
+        uploadFiles(files);
+        dirInput.value = '';
     });
 }
 

@@ -59,7 +59,8 @@
 
         <main class="main-content">
             <div id="gallery-info" class="gallery-info" style="display: none;">
-                <input type="file" id="file-input" multiple webkitdirectory directory accept="image/*,video/*,audio/*,.pdf,.txt,.csv,.json,.md,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.zip,.rar,.7z,.tar,.gz,.tgz" style="display: none;">
+                <input type="file" id="file-input" multiple accept="image/*,video/*,audio/*,.pdf,.txt,.csv,.json,.md,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.zip,.rar,.7z,.tar,.gz,.tgz" style="display: none;">
+                <input type="file" id="dir-input" webkitdirectory directory style="display: none;">
             </div>
 
             <div id="password-modal" class="modal" style="display: none;">
@@ -81,7 +82,18 @@
                         <polyline points="17 8 12 3 7 8"></polyline>
                         <line x1="12" y1="3" x2="12" y2="15"></line>
                     </svg>
-                    <p>Drag & drop files, folders, photos, videos, docs—anything—or click to select</p>
+                    <p class="upload-title">Drag & drop files or folders</p>
+                    <p class="upload-subtitle">Photos, videos, documents, archives, or pick below</p>
+                    <div class="upload-actions">
+                        <button type="button" class="upload-btn upload-btn-primary" id="upload-files-btn">
+                            <span class="upload-btn-icon" aria-hidden="true">📁</span>
+                            <span class="upload-btn-text">Select file(s)</span>
+                        </button>
+                        <button type="button" class="upload-btn upload-btn-secondary" id="upload-folder-btn">
+                            <span class="upload-btn-icon" aria-hidden="true">🗂️</span>
+                            <span class="upload-btn-text">Select a folder</span>
+                        </button>
+                    </div>
                 </div>
                 <div id="upload-progress" class="upload-progress"></div>
             </div>

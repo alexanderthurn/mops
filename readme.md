@@ -22,6 +22,15 @@ The most simple photo gallery! Just upload it to your Apache/PHP server. It focu
 6) Send the link of the gallery to your friends and let them upload
 7) Upload images (single, multi-file, or directory upload). Thumbnails generate on the fly.
 
+## Screenshots
+
+<p>
+  <img src="misc/screenshots/1.png" alt="Screenshot 1" width="50%" />
+  <img src="misc/screenshots/2.jpg" alt="Screenshot 2" width="50%" />
+  <img src="misc/screenshots/3.jpg" alt="Screenshot 3" width="50%" />
+  <img src="misc/screenshots/4.jpg" alt="Screenshot 4" width="50%" />
+</p>
+
 ## Requirements
 
 - PHP 7.4+ with ImageMagick enabled
