@@ -10,7 +10,11 @@ let isLoggedIn = false;
 const galleryInput = document.getElementById('gallery-input');
 const loadGalleryBtn = document.getElementById('load-gallery-btn');
 const gallerySelector = document.getElementById('gallery-selector');
+const brandTitle = document.getElementById('brand-title');
+const titleActions = document.getElementById('title-actions');
+const headerActions = document.getElementById('header-actions');
 const headerRight = document.getElementById('header-right');
+const loginToggle = document.getElementById('login-toggle');
 const loginWrapper = document.getElementById('login-wrapper');
 const loggedInWrapper = document.getElementById('logged-in-wrapper');
 const headerPasswordInput = document.getElementById('header-password-input');
@@ -37,6 +41,9 @@ const lightboxCaption = document.getElementById('lightbox-caption');
 const lightboxClose = document.getElementById('lightbox-close');
 const lightboxPrev = document.getElementById('lightbox-prev');
 const lightboxNext = document.getElementById('lightbox-next');
+const lightboxLeftHotspot = document.getElementById('lightbox-left-hotspot');
+const lightboxCenterHotspot = document.getElementById('lightbox-center-hotspot');
+const lightboxRightHotspot = document.getElementById('lightbox-right-hotspot');
 
 // Initialize
 window.addEventListener('DOMContentLoaded', () => {
@@ -80,6 +87,14 @@ window.addEventListener('DOMContentLoaded', () => {
         });
     }
     
+    // Mobile login toggle
+    if (loginToggle) {
+        loginToggle.addEventListener('click', () => {
+            const isOpen = loginWrapper.classList.toggle('is-open');
+            loginToggle.setAttribute('aria-expanded', isOpen ? 'true' : 'false');
+        });
+    }
+    
     // Handle header password input Enter key
     if (headerPasswordInput) {
         headerPasswordInput.addEventListener('keypress', (e) => {
@@ -109,6 +124,13 @@ window.addEventListener('DOMContentLoaded', () => {
         if (gallerySelector) gallerySelector.style.display = 'flex';
         if (emptyState) emptyState.style.display = 'block';
         if (headerRight) headerRight.style.display = 'none';
+        if (brandTitle) brandTitle.style.display = 'block';
+        if (galleryTitle) {
+            galleryTitle.textContent = '';
+            galleryTitle.style.display = 'none';
+        }
+        if (headerActions) headerActions.style.display = 'none';
+        if (titleActions) titleActions.style.display = 'none';
     }
 });
 
@@ -156,6 +178,9 @@ function logout() {
 function updateLoginUI() {
     if (!currentGallery) {
         if (headerRight) headerRight.style.display = 'none';
+        if (headerActions) headerActions.style.display = 'none';
+        if (titleActions) titleActions.style.display = 'none';
+        if (loginToggle) loginToggle.style.display = 'none';
         return;
     }
     
@@ -166,17 +191,39 @@ function updateLoginUI() {
         isLoggedIn = true;
         if (loginWrapper) loginWrapper.style.display = 'none';
         if (loggedInWrapper) loggedInWrapper.style.display = 'none';
-        // Don't show login UI at all for passwordless galleries
-        if (headerRight) headerRight.style.display = 'none';
+        if (headerActions) headerActions.style.display = 'flex';
+        if (loginToggle) loginToggle.style.display = 'none';
     } else {
         // Gallery has password
         if (isLoggedIn) {
             if (loginWrapper) loginWrapper.style.display = 'none';
             if (loggedInWrapper) loggedInWrapper.style.display = 'flex';
+            if (headerActions) headerActions.style.display = 'flex';
+            if (loginToggle) {
+                loginToggle.style.display = 'none';
+                loginWrapper.classList.remove('is-open');
+                loginToggle.setAttribute('aria-expanded', 'false');
+            }
         } else {
-            if (loginWrapper) loginWrapper.style.display = 'flex';
+            const isMobile = window.matchMedia('(max-width: 768px)').matches;
+            if (isMobile) {
+                if (loginToggle) {
+                    loginToggle.style.display = 'inline-flex';
+                    loginWrapper.classList.remove('is-open');
+                    loginToggle.setAttribute('aria-expanded', 'false');
+                }
+                if (loginWrapper) loginWrapper.style.display = 'none';
+            } else {
+                if (loginToggle) loginToggle.style.display = 'none';
+                if (loginWrapper) loginWrapper.style.display = 'flex';
+            }
             if (loggedInWrapper) loggedInWrapper.style.display = 'none';
+            if (headerActions) headerActions.style.display = 'none';
         }
+    }
+    
+    if (titleActions) {
+        titleActions.style.display = currentGallery ? 'flex' : 'none';
     }
     
     // Show/hide upload button and delete icons based on login status
@@ -199,7 +246,13 @@ function updateDeleteButtonsVisibility() {
 // Load gallery
 async function loadGallery(galleryName) {
     currentGallery = galleryName;
-    if (galleryTitle) galleryTitle.textContent = galleryName;
+    if (galleryTitle) {
+        galleryTitle.textContent = galleryName;
+        galleryTitle.style.display = 'block';
+    }
+    if (brandTitle) brandTitle.style.display = 'none';
+    if (headerActions) headerActions.style.display = 'flex';
+    if (titleActions) titleActions.style.display = 'flex';
     
     // Hide empty state and gallery selector
     if (emptyState) emptyState.style.display = 'none';
@@ -235,7 +288,7 @@ async function loadGallery(galleryName) {
             
             displayGallery(data.files);
             updateLoginUI();
-            
+
             if (galleryInfo) galleryInfo.style.display = 'flex';
             
             // Reset upload area visibility on gallery load
@@ -248,6 +301,13 @@ async function loadGallery(galleryName) {
             if (emptyState) emptyState.style.display = 'block';
             if (gallerySelector) gallerySelector.style.display = 'flex';
             if (headerRight) headerRight.style.display = 'none';
+            if (brandTitle) brandTitle.style.display = 'block';
+            if (galleryTitle) {
+                galleryTitle.textContent = '';
+                galleryTitle.style.display = 'none';
+            }
+            if (headerActions) headerActions.style.display = 'none';
+            if (titleActions) titleActions.style.display = 'none';
         }
     } catch (error) {
         console.error('Error loading gallery:', error);
@@ -256,6 +316,13 @@ async function loadGallery(galleryName) {
         if (emptyState) emptyState.style.display = 'block';
         if (gallerySelector) gallerySelector.style.display = 'flex';
         if (headerRight) headerRight.style.display = 'none';
+        if (brandTitle) brandTitle.style.display = 'block';
+        if (galleryTitle) {
+            galleryTitle.textContent = '';
+            galleryTitle.style.display = 'none';
+        }
+        if (headerActions) headerActions.style.display = 'none';
+        if (titleActions) titleActions.style.display = 'none';
     }
 }
 
@@ -622,13 +689,18 @@ function updateLightbox() {
         img.src = `api/file.php?gallery=${encodeURIComponent(currentGallery)}&file=${encodeURIComponent(file.path)}`;
         img.alt = file.name;
         lightboxContent.appendChild(img);
+        if (lightboxCenterHotspot) lightboxCenterHotspot.style.display = 'block';
     } else {
         const video = document.createElement('video');
         video.src = `api/file.php?gallery=${encodeURIComponent(currentGallery)}&file=${encodeURIComponent(file.path)}`;
         video.controls = true;
         video.autoplay = true;
         lightboxContent.appendChild(video);
+        if (lightboxCenterHotspot) lightboxCenterHotspot.style.display = 'none';
     }
+    
+    if (lightboxLeftHotspot) lightboxLeftHotspot.style.display = 'block';
+    if (lightboxRightHotspot) lightboxRightHotspot.style.display = 'block';
     
     lightboxCaption.textContent = `${currentIndex + 1} / ${currentFiles.length} - ${file.name}`;
 }
@@ -642,6 +714,31 @@ lightboxNext.addEventListener('click', () => {
     currentIndex = (currentIndex + 1) % currentFiles.length;
     updateLightbox();
 });
+
+// Lightbox hotspots
+if (lightboxLeftHotspot) {
+    lightboxLeftHotspot.addEventListener('click', (e) => {
+        e.stopPropagation();
+        lightboxPrev.click();
+    });
+}
+
+if (lightboxRightHotspot) {
+    lightboxRightHotspot.addEventListener('click', (e) => {
+        e.stopPropagation();
+        lightboxNext.click();
+    });
+}
+
+if (lightboxCenterHotspot) {
+    lightboxCenterHotspot.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const file = currentFiles[currentIndex];
+        if (!file) return;
+        const url = `api/file.php?gallery=${encodeURIComponent(currentGallery)}&file=${encodeURIComponent(file.path)}`;
+        window.open(url, '_blank', 'noopener');
+    });
+}
 
 // Keyboard navigation
 document.addEventListener('keydown', (e) => {
