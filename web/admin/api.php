@@ -147,8 +147,8 @@ function handleListGalleries() {
                         continue;
                     }
                     
-                    // Only count image and video files
-                    if (isImageFile($filename) || isVideoFile($filename)) {
+                    // Only count supported files
+                    if (isSupportedFile($filename)) {
                         $fileCount++;
                     }
                 }

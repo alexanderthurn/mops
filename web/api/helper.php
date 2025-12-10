@@ -171,19 +171,94 @@ function getGalleryPath($gallery) {
 /**
  * Check if file is an image
  */
+function getFileExtension($filename) {
+    return strtolower(pathinfo($filename, PATHINFO_EXTENSION));
+}
+
+/**
+ * Classify a file into a supported category
+ */
+function getFileCategory($filename) {
+    $ext = getFileExtension($filename);
+    
+    $imageExts = ['jpg', 'jpeg', 'png', 'gif', 'webp', 'tiff', 'bmp', 'heic'];
+    $videoExts = ['mp4', 'mov', 'webm', 'mkv', 'avi', 'm4v'];
+    $audioExts = ['mp3', 'wav', 'ogg', 'm4a', 'aac', 'flac'];
+    $documentExts = ['pdf', 'txt', 'csv', 'json', 'md', 'doc', 'docx', 'xls', 'xlsx', 'ppt', 'pptx'];
+    $archiveExts = ['zip', 'rar', '7z', 'tar', 'gz', 'tgz'];
+    
+    if (in_array($ext, $imageExts, true)) {
+        return ['category' => 'image', 'extension' => $ext];
+    }
+    
+    if (in_array($ext, $videoExts, true)) {
+        return ['category' => 'video', 'extension' => $ext];
+    }
+    
+    if (in_array($ext, $audioExts, true)) {
+        return ['category' => 'audio', 'extension' => $ext];
+    }
+    
+    if (in_array($ext, $documentExts, true)) {
+        return ['category' => 'document', 'extension' => $ext];
+    }
+    
+    if (in_array($ext, $archiveExts, true)) {
+        return ['category' => 'archive', 'extension' => $ext];
+    }
+    
+    return ['category' => null, 'extension' => $ext];
+}
+
+/**
+ * Check if file is an image
+ */
 function isImageFile($filename) {
-    $ext = strtolower(pathinfo($filename, PATHINFO_EXTENSION));
-    $imageExts = ['jpg', 'jpeg', 'png', 'gif', 'webp', 'tiff', 'bmp'];
-    return in_array($ext, $imageExts);
+    return getFileCategory($filename)['category'] === 'image';
 }
 
 /**
  * Check if file is a video
  */
 function isVideoFile($filename) {
-    $ext = strtolower(pathinfo($filename, PATHINFO_EXTENSION));
-    $videoExts = ['mp4', 'mov', 'webm', 'mkv', 'avi', 'm4v'];
-    return in_array($ext, $videoExts);
+    return getFileCategory($filename)['category'] === 'video';
+}
+
+/**
+ * Check if file is allowed in the gallery
+ */
+function isSupportedFile($filename) {
+    return getFileCategory($filename)['category'] !== null;
+}
+
+/**
+ * Build a file response payload
+ */
+function buildFileResponse($filename, $relativePath, $absolutePath) {
+    $fileInfo = getFileCategory($filename);
+    
+    if (!$fileInfo['category']) {
+        return null;
+    }
+    
+    $thumb = null;
+    
+    if ($fileInfo['category'] === 'image') {
+        generateThumbnail($absolutePath);
+        $thumb = str_replace(
+            $filename,
+            pathinfo($filename, PATHINFO_FILENAME) . '_thumb.' . pathinfo($filename, PATHINFO_EXTENSION),
+            $relativePath
+        );
+    }
+    
+    return [
+        'type' => $fileInfo['category'],
+        'name' => $filename,
+        'path' => $relativePath,
+        'thumb' => $thumb,
+        'extension' => $fileInfo['extension']
+    ];
 }
 
 /**
@@ -217,25 +292,16 @@ function scanGallery($gallery, $subfolder = '') {
                 continue;
             }
             
-            $relativePath = str_replace($galleryPath . '/', '', $file->getPathname());
+            // Only include supported file types
+            if (!isSupportedFile($filename)) {
+                continue;
+            }
             
-            if (isImageFile($filename)) {
-                // Generate thumbnail if missing
-                generateThumbnail($file->getPathname());
-                
-                $files[] = [
-                    'type' => 'image',
-                    'name' => $filename,
-                    'path' => $relativePath,
-                    'thumb' => str_replace($filename, pathinfo($filename, PATHINFO_FILENAME) . '_thumb.' . pathinfo($filename, PATHINFO_EXTENSION), $relativePath)
-                ];
-            } elseif (isVideoFile($filename)) {
-                $files[] = [
-                    'type' => 'video',
-                    'name' => $filename,
-                    'path' => $relativePath,
-                    'thumb' => null
-                ];
+            $relativePath = str_replace($galleryPath . '/', '', $file->getPathname());
+            $fileEntry = buildFileResponse($filename, $relativePath, $file->getPathname());
+            
+            if ($fileEntry) {
+                $files[] = $fileEntry;
             }
         }
     }

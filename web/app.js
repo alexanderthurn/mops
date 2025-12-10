@@ -342,15 +342,35 @@ function displayGallery(files) {
         
         if (file.type === 'image') {
             const img = document.createElement('img');
-            img.src = `api/file.php?gallery=${encodeURIComponent(currentGallery)}&file=${encodeURIComponent(file.thumb || file.path)}`;
+            img.src = getFileUrl(file.thumb || file.path);
             img.alt = file.name;
             img.loading = 'lazy';
             item.appendChild(img);
-        } else {
+        } else if (file.type === 'video') {
             const videoOverlay = document.createElement('div');
             videoOverlay.className = 'video-overlay';
             videoOverlay.innerHTML = '▶';
             item.appendChild(videoOverlay);
+        } else {
+            const fileCard = document.createElement('div');
+            fileCard.className = 'file-card';
+            
+            const badge = document.createElement('div');
+            badge.className = 'file-badge';
+            badge.textContent = (file.extension || 'FILE').toUpperCase();
+            
+            const name = document.createElement('div');
+            name.className = 'file-name';
+            name.textContent = file.name;
+            
+            const meta = document.createElement('div');
+            meta.className = 'file-meta';
+            meta.textContent = formatFileType(file.type);
+            
+            fileCard.appendChild(badge);
+            fileCard.appendChild(name);
+            fileCard.appendChild(meta);
+            item.appendChild(fileCard);
         }
         
         const deleteBtn = document.createElement('button');
@@ -368,6 +388,63 @@ function displayGallery(files) {
     
     // Update delete buttons visibility after displaying
     updateDeleteButtonsVisibility();
+}
+
+// Helpers for non-image/video files
+function formatFileType(type) {
+    switch (type) {
+        case 'audio':
+            return 'Audio';
+        case 'document':
+            return 'Document';
+        case 'archive':
+            return 'Archive';
+        default:
+            return 'File';
+    }
+}
+
+function createFileViewer(file) {
+    const wrapper = document.createElement('div');
+    wrapper.className = 'file-viewer';
+    
+    const badge = document.createElement('div');
+    badge.className = 'file-badge large';
+    badge.textContent = (file.extension || 'FILE').toUpperCase();
+    
+    const name = document.createElement('div');
+    name.className = 'file-name';
+    name.textContent = file.name;
+    
+    const meta = document.createElement('div');
+    meta.className = 'file-meta';
+    meta.textContent = formatFileType(file.type);
+    
+    const actions = document.createElement('div');
+    actions.className = 'file-actions';
+    
+    const openLink = document.createElement('a');
+    openLink.href = getFileUrl(file.path);
+    openLink.target = '_blank';
+    openLink.rel = 'noopener';
+    openLink.className = 'file-action-btn';
+    openLink.textContent = 'Open';
+    
+    const downloadLink = document.createElement('a');
+    downloadLink.href = getFileUrl(file.path);
+    downloadLink.download = file.name;
+    downloadLink.className = 'file-action-btn secondary';
+    downloadLink.textContent = 'Download';
+    
+    actions.appendChild(openLink);
+    actions.appendChild(downloadLink);
+    
+    wrapper.appendChild(badge);
+    wrapper.appendChild(name);
+    wrapper.appendChild(meta);
+    wrapper.appendChild(actions);
+    
+    return wrapper;
 }
 
 // Download ZIP functionality
@@ -686,16 +763,28 @@ function updateLightbox() {
     
     if (file.type === 'image') {
         const img = document.createElement('img');
-        img.src = `api/file.php?gallery=${encodeURIComponent(currentGallery)}&file=${encodeURIComponent(file.path)}`;
+        img.src = getFileUrl(file.path);
         img.alt = file.name;
         lightboxContent.appendChild(img);
         if (lightboxCenterHotspot) lightboxCenterHotspot.style.display = 'block';
-    } else {
+    } else if (file.type === 'video') {
         const video = document.createElement('video');
-        video.src = `api/file.php?gallery=${encodeURIComponent(currentGallery)}&file=${encodeURIComponent(file.path)}`;
+        video.src = getFileUrl(file.path);
         video.controls = true;
         video.autoplay = true;
         lightboxContent.appendChild(video);
+        if (lightboxCenterHotspot) lightboxCenterHotspot.style.display = 'none';
+    } else if (file.type === 'audio') {
+        const audio = document.createElement('audio');
+        audio.src = getFileUrl(file.path);
+        audio.controls = true;
+        audio.autoplay = true;
+        audio.style.width = '100%';
+        lightboxContent.appendChild(audio);
+        if (lightboxCenterHotspot) lightboxCenterHotspot.style.display = 'none';
+    } else {
+        const fileViewer = createFileViewer(file);
+        lightboxContent.appendChild(fileViewer);
         if (lightboxCenterHotspot) lightboxCenterHotspot.style.display = 'none';
     }
     
@@ -735,7 +824,7 @@ if (lightboxCenterHotspot) {
         e.stopPropagation();
         const file = currentFiles[currentIndex];
         if (!file) return;
-        const url = `api/file.php?gallery=${encodeURIComponent(currentGallery)}&file=${encodeURIComponent(file.path)}`;
+        const url = getFileUrl(file.path);
         window.open(url, '_blank', 'noopener');
     });
 }
@@ -761,6 +850,10 @@ lightbox.addEventListener('click', (e) => {
 });
 
 // Utility
+function getFileUrl(filePath) {
+    return `api/file.php?gallery=${encodeURIComponent(currentGallery)}&file=${encodeURIComponent(filePath)}`;
+}
+
 function showError(message) {
     // Simple error display - could be enhanced with a toast notification
     console.error(message);

@@ -43,8 +43,8 @@ if ($filename[0] === '.' || $filename === '.password' || $filename === '.usernam
     die('Access denied');
 }
 
-// Only allow image and video files
-if (!isImageFile($filename) && !isVideoFile($filename)) {
+// Only allow supported file types (thumbnails are handled separately)
+if (!isSupportedFile($filename)) {
     // Allow thumbnails
     if (strpos($filename, '_thumb.') === false) {
         http_response_code(403);
@@ -60,6 +60,7 @@ if (!$mimeType) {
     $mimeTypes = [
         'jpg' => 'image/jpeg',
         'jpeg' => 'image/jpeg',
+        'heic' => 'image/heic',
         'png' => 'image/png',
         'gif' => 'image/gif',
         'webp' => 'image/webp',
@@ -68,7 +69,30 @@ if (!$mimeType) {
         'webm' => 'video/webm',
         'mkv' => 'video/x-matroska',
         'avi' => 'video/x-msvideo',
-        'm4v' => 'video/x-m4v'
+        'm4v' => 'video/x-m4v',
+        'mp3' => 'audio/mpeg',
+        'wav' => 'audio/wav',
+        'ogg' => 'audio/ogg',
+        'm4a' => 'audio/mp4',
+        'aac' => 'audio/aac',
+        'flac' => 'audio/flac',
+        'pdf' => 'application/pdf',
+        'txt' => 'text/plain',
+        'csv' => 'text/csv',
+        'json' => 'application/json',
+        'md' => 'text/markdown',
+        'doc' => 'application/msword',
+        'docx' => 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+        'xls' => 'application/vnd.ms-excel',
+        'xlsx' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        'ppt' => 'application/vnd.ms-powerpoint',
+        'pptx' => 'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+        'zip' => 'application/zip',
+        'rar' => 'application/vnd.rar',
+        '7z' => 'application/x-7z-compressed',
+        'tar' => 'application/x-tar',
+        'gz' => 'application/gzip',
+        'tgz' => 'application/gzip',
     ];
     $mimeType = $mimeTypes[$ext] ?? 'application/octet-stream';
 }

@@ -111,9 +111,9 @@ function handleUpload() {
     $filename = basename($file['name']);
     
     // Validate file type
-    if (!isImageFile($filename) && !isVideoFile($filename)) {
+    if (!isSupportedFile($filename)) {
         http_response_code(400);
-        echo json_encode(['error' => 'Invalid file type. Only images and videos allowed.']);
+        echo json_encode(['error' => 'Invalid file type. Unsupported extension.']);
         return;
     }
     
@@ -171,20 +171,11 @@ function handleUpload() {
     }
     
     $relativePath = $filename;
-    $thumbPath = null;
-    
-    if (isImageFile($filename)) {
-        $thumbPath = pathinfo($filename, PATHINFO_FILENAME) . '_thumb.' . pathinfo($filename, PATHINFO_EXTENSION);
-    }
+    $fileResponse = buildFileResponse($filename, $relativePath, $targetPath);
     
     echo json_encode([
         'success' => true,
-        'file' => [
-            'type' => isImageFile($filename) ? 'image' : 'video',
-            'name' => $filename,
-            'path' => $relativePath,
-            'thumb' => $thumbPath
-        ]
+        'file' => $fileResponse
     ]);
 }
 
@@ -314,8 +305,8 @@ function handleDownloadZip() {
                 continue;
             }
             
-            // Only add image and video files
-            if (isImageFile($filename) || isVideoFile($filename)) {
+            // Only add supported files
+            if (isSupportedFile($filename)) {
                 $filePath = $file->getPathname();
                 $relativePath = str_replace($galleryPath . '/', '', $filePath);
                 $zip->addFile($filePath, $relativePath);
