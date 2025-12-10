@@ -508,8 +508,19 @@ if (uploadDropzone) {
             return;
         }
         
-        const files = Array.from(e.dataTransfer.files);
-        uploadFiles(files);
+        const items = e.dataTransfer.items;
+        if (items && items.length > 0) {
+            extractFilesFromItems(items)
+                .then((files) => uploadFiles(files))
+                .catch((err) => {
+                    console.error('Folder drop parsing failed:', err);
+                    const fallback = Array.from(e.dataTransfer.files);
+                    uploadFiles(fallback);
+                });
+        } else {
+            const files = Array.from(e.dataTransfer.files);
+            uploadFiles(files);
+        }
     });
 }
 
@@ -519,6 +530,43 @@ if (fileInput) {
         uploadFiles(files);
         fileInput.value = '';
     });
+}
+
+// Extract files (with relative paths) from DataTransfer items, supporting folders
+async function extractFilesFromItems(items) {
+    const files = [];
+    
+    const traverseEntry = async (entry, pathPrefix = '') => {
+        if (entry.isFile) {
+            const file = await new Promise((resolve, reject) => entry.file(resolve, reject));
+            const fullPath = pathPrefix ? `${pathPrefix}/${file.name}` : file.name;
+            files.push({ file, path: fullPath });
+        } else if (entry.isDirectory) {
+            const reader = entry.createReader();
+            const readEntries = () => new Promise((resolve) => reader.readEntries(resolve));
+            let entries;
+            do {
+                entries = await readEntries();
+                for (const ent of entries) {
+                    await traverseEntry(ent, pathPrefix ? `${pathPrefix}/${entry.name}` : entry.name);
+                }
+            } while (entries.length > 0);
+        }
+    };
+    
+    for (const item of items) {
+        const entry = item.webkitGetAsEntry ? item.webkitGetAsEntry() : null;
+        if (entry) {
+            await traverseEntry(entry, '');
+        } else if (item.kind === 'file') {
+            const file = item.getAsFile();
+            if (file) {
+                files.push({ file, path: file.webkitRelativePath || file.name });
+            }
+        }
+    }
+    
+    return files;
 }
 
 // Password modal
@@ -572,8 +620,10 @@ async function uploadFiles(files) {
     if (uploadArea) uploadArea.style.display = 'block';
     if (uploadProgress) uploadProgress.innerHTML = '';
     
-    for (const file of files) {
-        await uploadFile(file);
+    for (const entry of files) {
+        const file = entry.file ? entry.file : entry;
+        const relativePath = normalizeRelativePath(entry.path || file.webkitRelativePath || file.name);
+        await uploadFile(file, relativePath);
     }
     
     // Reload gallery after uploads complete
@@ -583,7 +633,9 @@ async function uploadFiles(files) {
     }, 1000);
 }
 
-async function uploadFile(file) {
+async function uploadFile(file, relativePath) {
+    const safePath = normalizeRelativePath(relativePath || file.webkitRelativePath || file.name);
+    
     const item = document.createElement('div');
     item.className = 'upload-item';
     
@@ -612,6 +664,7 @@ async function uploadFile(file) {
         
         const formData = new FormData();
         formData.append('file', fileToUpload);
+        formData.append('path', safePath);
         
         const xhr = new XMLHttpRequest();
         
@@ -866,6 +919,15 @@ lightbox.addEventListener('click', (e) => {
 // Utility
 function getFileUrl(filePath) {
     return `api/file.php?gallery=${encodeURIComponent(currentGallery)}&file=${encodeURIComponent(filePath)}`;
+}
+
+function normalizeRelativePath(path) {
+    if (!path) return '';
+    // Ensure forward slashes and no leading slash
+    let clean = path.replace(/\\/g, '/').replace(/^\/+/, '');
+    // Remove redundant ./ segments
+    clean = clean.split('/').filter(p => p !== '' && p !== '.').join('/');
+    return clean || path;
 }
 
 function showError(message) {

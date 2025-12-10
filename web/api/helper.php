@@ -147,6 +147,38 @@ function sanitizeGalleryName($name) {
 }
 
 /**
+ * Sanitize an individual path segment (file or folder name)
+ */
+function sanitizePathSegment($segment) {
+    // Replace unsupported chars with underscore, keep dots for extensions
+    $clean = preg_replace('/[^a-zA-Z0-9._-]/', '_', $segment);
+    // Avoid empty segments
+    return $clean === '' ? '_' : $clean;
+}
+
+/**
+ * Sanitize a relative path (no leading slash, no traversal)
+ */
+function sanitizeRelativePath($path) {
+    if ($path === null) {
+        return '';
+    }
+    
+    $path = str_replace('\\', '/', $path); // normalize separators
+    $parts = explode('/', $path);
+    $safeParts = [];
+    
+    foreach ($parts as $part) {
+        if ($part === '' || $part === '.' || $part === '..') {
+            continue;
+        }
+        $safeParts[] = sanitizePathSegment($part);
+    }
+    
+    return implode('/', $safeParts);
+}
+
+/**
  * Validate file path to prevent directory traversal
  */
 function validateFilePath($path, $basePath = DATA_ROOT) {

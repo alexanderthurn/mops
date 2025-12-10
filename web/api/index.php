@@ -109,6 +109,13 @@ function handleUpload() {
     
     $file = $_FILES['file'];
     $filename = basename($file['name']);
+    $requestedPath = $_POST['path'] ?? $filename;
+    
+    // Sanitize path and preserve folder hierarchy (if provided)
+    $relativePath = sanitizeRelativePath($requestedPath);
+    if (empty($relativePath)) {
+        $relativePath = sanitizePathSegment($filename);
+    }
     
     // Validate file type
     if (!isSupportedFile($filename)) {
@@ -117,20 +124,39 @@ function handleUpload() {
         return;
     }
     
-    // Sanitize filename
-    $filename = preg_replace('/[^a-zA-Z0-9._-]/', '_', $filename);
+    // Break out directory + basename
+    $pathInfo = pathinfo($relativePath);
+    $dirPart = $pathInfo['dirname'] !== '.' ? $pathInfo['dirname'] : '';
+    $baseName = sanitizePathSegment($pathInfo['basename']);
+    $extension = $pathInfo['extension'] ?? '';
     
-    $targetPath = $galleryPath . '/' . $filename;
+    // Ensure directory exists
+    $targetDir = $dirPart ? $galleryPath . '/' . $dirPart : $galleryPath;
+    if (!is_dir($targetDir)) {
+        if (!mkdir($targetDir, 0755, true)) {
+            http_response_code(500);
+            echo json_encode(['error' => 'Failed to create target folder']);
+            return;
+        }
+    }
     
-    // Handle overwrite
+    // Initial target path
+    $targetPath = $targetDir . '/' . $baseName;
+    
+    // Handle overwrite (keep in same dir)
     if (file_exists($targetPath)) {
-        $pathInfo = pathinfo($filename);
+        $nameOnly = $pathInfo['filename'] ?? pathinfo($baseName, PATHINFO_FILENAME);
+        $ext = $extension ? '.' . $extension : (pathinfo($baseName, PATHINFO_EXTENSION) ? '.' . pathinfo($baseName, PATHINFO_EXTENSION) : '');
         $counter = 1;
         do {
-            $filename = $pathInfo['filename'] . '_' . $counter . '.' . $pathInfo['extension'];
-            $targetPath = $galleryPath . '/' . $filename;
+            $candidate = $nameOnly . '_' . $counter . $ext;
+            $targetPath = $targetDir . '/' . $candidate;
+            $relativePath = ($dirPart ? $dirPart . '/' : '') . $candidate;
             $counter++;
         } while (file_exists($targetPath));
+    } else {
+        // Update relativePath with sanitized base name
+        $relativePath = ($dirPart ? $dirPart . '/' : '') . $baseName;
     }
     
     // Move uploaded file
@@ -141,7 +167,7 @@ function handleUpload() {
     }
     
     // Generate thumbnail for images
-    if (isImageFile($filename)) {
+    if (isImageFile($targetPath)) {
         generateThumbnail($targetPath);
         
         // Resize image if too large (max 1080px width)
@@ -170,8 +196,8 @@ function handleUpload() {
         }
     }
     
-    $relativePath = $filename;
-    $fileResponse = buildFileResponse($filename, $relativePath, $targetPath);
+    // Use the resolved relativePath for response
+    $fileResponse = buildFileResponse(basename($targetPath), $relativePath, $targetPath);
     
     echo json_encode([
         'success' => true,
