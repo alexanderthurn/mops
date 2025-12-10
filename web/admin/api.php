@@ -486,44 +486,10 @@ function handleSavePage() {
     }
 }
 
-function getSettingsPath() {
-    return WEB_ROOT . '/api/settings.json';
-}
-
-function getDefaultSettings() {
-    return [
-        'maxImageWidth' => 1080,
-        'maxImageFileSize' => 5242880,
-        'maxFileSize' => 10485760
-    ];
-}
-
-function readSettingsFile() {
-    $defaults = getDefaultSettings();
-    $path = getSettingsPath();
-
-    if (!file_exists($path)) {
-        return $defaults;
-    }
-
-    $content = file_get_contents($path);
-    $decoded = json_decode($content, true);
-
-    if (!is_array($decoded)) {
-        return $defaults;
-    }
-
-    // Only keep known keys and merge with defaults
-    return array_merge(
-        $defaults,
-        array_intersect_key($decoded, $defaults)
-    );
-}
-
 function handleGetSettings() {
     requireAdmin();
 
-    $settings = readSettingsFile();
+    $settings = getSettings();
     echo json_encode(['success' => true, 'settings' => $settings]);
 }
 
@@ -542,7 +508,7 @@ function handleSaveSettings() {
         'maxFileSize' => max(0, $maxFileSize)
     ];
 
-    $path = getSettingsPath();
+    $path = SETTINGS_PATH;
     $encoded = json_encode($settings, JSON_PRETTY_PRINT);
 
     if ($encoded === false || file_put_contents($path, $encoded) === false) {

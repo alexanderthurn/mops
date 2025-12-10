@@ -55,17 +55,20 @@
                             <div class="form-field">
                                 <label for="max-image-width">Max image width (px)</label>
                                 <input type="number" id="max-image-width" min="0" placeholder="1080">
-                                <small class="field-hint">0 means unlimited; only stored for now.</small>
                             </div>
                             <div class="form-field">
-                                <label for="max-image-file-size">Max image file size (bytes)</label>
-                                <input type="number" id="max-image-file-size" min="0" step="1024" placeholder="5242880">
-                                <small class="field-hint">0 means unlimited; only stored for now.</small>
+                                <label for="max-image-file-size">
+                                    Max image file size (bytes)
+                                    <span class="field-inline" id="max-image-file-size-mb">≈ 0.00 MB</span>
+                                </label>
+                                <input type="number" id="max-image-file-size" min="0" step="1" placeholder="5242880">
                             </div>
                             <div class="form-field">
-                                <label for="max-file-size">Max file size (bytes)</label>
-                                <input type="number" id="max-file-size" min="0" step="1024" placeholder="10485760">
-                                <small class="field-hint">0 means unlimited; only stored for now.</small>
+                                <label for="max-file-size">
+                                    Max file size (bytes)
+                                    <span class="field-inline" id="max-file-size-mb">≈ 0.00 MB</span>
+                                </label>
+                                <input type="number" id="max-file-size" min="0" step="1" placeholder="10485760">
                             </div>
                         </div>
                         <div class="settings-actions">

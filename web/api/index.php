@@ -101,6 +101,10 @@ function handleUpload() {
     $gallery = $_GET['gallery'] ?? '';
     $password = $_GET['password'] ?? '';
     $viewPassword = $_GET['viewPassword'] ?? '';
+    $settings = getSettings();
+    $maxImageWidth = (int) ($settings['maxImageWidth'] ?? 0);
+    $maxImageFileSize = (int) ($settings['maxImageFileSize'] ?? 0);
+    $maxFileSize = (int) ($settings['maxFileSize'] ?? 0);
     
     if (empty($gallery)) {
         http_response_code(400);
@@ -151,6 +155,8 @@ function handleUpload() {
     $file = $_FILES['file'];
     $filename = basename($file['name']);
     $requestedPath = $_POST['path'] ?? $filename;
+    $isImage = isImageFile($filename);
+    $originalSize = $file['size'] ?? filesize($file['tmp_name']);
     
     // Sanitize path and preserve folder hierarchy (if provided)
     $relativePath = sanitizeRelativePath($requestedPath);
@@ -199,42 +205,124 @@ function handleUpload() {
         // Update relativePath with sanitized base name
         $relativePath = ($dirPart ? $dirPart . '/' : '') . $baseName;
     }
-    
-    // Move uploaded file
-    if (!move_uploaded_file($file['tmp_name'], $targetPath)) {
+
+    // Enforce global max file size early for non-images
+    if (!$isImage && $maxFileSize > 0 && $originalSize > $maxFileSize) {
+        http_response_code(413);
+        echo json_encode(['error' => 'File exceeds maximum allowed size']);
+        return;
+    }
+
+    $chosenTmpPath = $file['tmp_name'];
+    $chosenSize = $originalSize;
+    $tempCandidate = null;
+
+    if ($isImage) {
+        $hasImagick = class_exists('Imagick');
+        $imageInfo = @getimagesize($file['tmp_name']);
+
+        if ($hasImagick) {
+            try {
+                $imagick = new Imagick($file['tmp_name']);
+                $width = $imagick->getImageWidth();
+                $height = $imagick->getImageHeight();
+                $needsResize = $maxImageWidth > 0 && $width > $maxImageWidth;
+                $needsReduce = $maxImageFileSize > 0 && $originalSize > $maxImageFileSize;
+
+                if ($needsResize || $needsReduce) {
+                    $tempCandidate = tempnam(sys_get_temp_dir(), 'imgopt_');
+                    if ($needsResize) {
+                        $newWidth = $maxImageWidth;
+                        $newHeight = intval(($height / $width) * $maxImageWidth);
+                        $imagick->resizeImage($newWidth, $newHeight, Imagick::FILTER_LANCZOS, 1, true);
+                    }
+
+                    $imagick->stripImage();
+                    if ($imagick->getImageFormat() === 'JPEG') {
+                        $imagick->setImageCompressionQuality(85);
+                    }
+                    $imagick->writeImage($tempCandidate);
+                    $candidateSize = filesize($tempCandidate);
+
+                    // If still above desired image size, try lowering quality gradually
+                    if ($maxImageFileSize > 0 && $candidateSize > $maxImageFileSize) {
+                        $quality = 80;
+                        while ($quality >= 50 && $candidateSize > $maxImageFileSize) {
+                            $imagick->setImageCompressionQuality($quality);
+                            $imagick->writeImage($tempCandidate);
+                            $candidateSize = filesize($tempCandidate);
+                            $quality -= 5;
+                        }
+                    }
+
+                    $candidateSize = filesize($tempCandidate);
+                    if ($candidateSize < $chosenSize) {
+                        $chosenTmpPath = $tempCandidate;
+                        $chosenSize = $candidateSize;
+                    } else {
+                        // Candidate is not smaller; discard
+                        @unlink($tempCandidate);
+                        $tempCandidate = null;
+                    }
+                }
+
+                $imagick->clear();
+                $imagick->destroy();
+            } catch (Exception $e) {
+                error_log("Image processing failed: " . $e->getMessage());
+            }
+        } else {
+            // Without Imagick we cannot resize; reject if width exceeds limit
+            if ($maxImageWidth > 0 && $imageInfo && isset($imageInfo[0]) && $imageInfo[0] > $maxImageWidth) {
+                http_response_code(413);
+                echo json_encode(['error' => 'Image exceeds maximum width and cannot be resized (Imagick missing)']);
+                return;
+            }
+        }
+
+        // Enforce image-specific max size
+        if ($maxImageFileSize > 0 && $chosenSize > $maxImageFileSize) {
+            if ($tempCandidate) {
+                @unlink($tempCandidate);
+            }
+            http_response_code(413);
+            echo json_encode(['error' => 'Image exceeds maximum file size']);
+            return;
+        }
+    }
+
+    // Final global size check (applies to all files)
+    if ($maxFileSize > 0 && $chosenSize > $maxFileSize) {
+        if ($tempCandidate) {
+            @unlink($tempCandidate);
+        }
+        http_response_code(413);
+        echo json_encode(['error' => 'File exceeds maximum allowed size']);
+        return;
+    }
+
+    // Move chosen file to target
+    $moved = false;
+    if ($chosenTmpPath === $file['tmp_name']) {
+        $moved = move_uploaded_file($chosenTmpPath, $targetPath);
+    } else {
+        $moved = rename($chosenTmpPath, $targetPath);
+        // Clean up original upload temp file
+        @unlink($file['tmp_name']);
+    }
+
+    if (!$moved) {
+        if ($tempCandidate && file_exists($tempCandidate)) {
+            @unlink($tempCandidate);
+        }
         http_response_code(500);
         echo json_encode(['error' => 'Failed to save file']);
         return;
     }
-    
+
     // Generate thumbnail for images
-    if (isImageFile($targetPath)) {
+    if ($isImage) {
         generateThumbnail($targetPath);
-        
-        // Resize image if too large (max 1080px width)
-        try {
-            if (extension_loaded('imagick')) {
-                $imagick = new Imagick($targetPath);
-                $width = $imagick->getImageWidth();
-                
-                if ($width > 1080) {
-                    $height = $imagick->getImageHeight();
-                    $newHeight = intval(($height / $width) * 1080);
-                    $imagick->resizeImage(1080, $newHeight, Imagick::FILTER_LANCZOS, 1, true);
-                    
-                    if ($imagick->getImageFormat() === 'JPEG') {
-                        $imagick->setImageCompressionQuality(85);
-                    }
-                    
-                    $imagick->writeImage($targetPath);
-                }
-                
-                $imagick->clear();
-                $imagick->destroy();
-            }
-        } catch (Exception $e) {
-            error_log("Image resize failed: " . $e->getMessage());
-        }
     }
     
     // Use the resolved relativePath for response

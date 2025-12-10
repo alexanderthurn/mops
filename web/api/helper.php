@@ -8,6 +8,35 @@
 define('WEB_ROOT', dirname(dirname(__FILE__)));
 define('DATA_ROOT', WEB_ROOT . '/data');
 define('ADMIN_ROOT', WEB_ROOT . '/admin');
+define('SETTINGS_PATH', WEB_ROOT . '/api/settings.json');
+
+/**
+ * Settings helpers
+ */
+function getDefaultSettings() {
+    return [
+        'maxImageWidth' => 1080,
+        'maxImageFileSize' => 5242880,
+        'maxFileSize' => 10485760
+    ];
+}
+
+function getSettings() {
+    $defaults = getDefaultSettings();
+
+    if (!file_exists(SETTINGS_PATH)) {
+        return $defaults;
+    }
+
+    $content = file_get_contents(SETTINGS_PATH);
+    $decoded = json_decode($content, true);
+
+    if (!is_array($decoded)) {
+        return $defaults;
+    }
+
+    return array_merge($defaults, array_intersect_key($decoded, $defaults));
+}
 
 /**
  * Authentication Functions

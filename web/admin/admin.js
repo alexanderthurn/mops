@@ -45,6 +45,8 @@ const maxImageWidthInput = document.getElementById('max-image-width');
 const maxImageFileSizeInput = document.getElementById('max-image-file-size');
 const maxFileSizeInput = document.getElementById('max-file-size');
 const settingsStatus = document.getElementById('settings-status');
+const maxImageFileSizeMb = document.getElementById('max-image-file-size-mb');
+const maxFileSizeMb = document.getElementById('max-file-size-mb');
 
 // Initialize
 window.addEventListener('DOMContentLoaded', () => {
@@ -345,6 +347,14 @@ function setupEventListeners() {
             await saveSettings();
         });
     }
+
+    if (maxImageFileSizeInput) {
+        maxImageFileSizeInput.addEventListener('input', () => updateSizeDisplay(maxImageFileSizeInput, maxImageFileSizeMb));
+    }
+
+    if (maxFileSizeInput) {
+        maxFileSizeInput.addEventListener('input', () => updateSizeDisplay(maxFileSizeInput, maxFileSizeMb));
+    }
 }
 
 // Check login status
@@ -419,6 +429,8 @@ async function loadSettings() {
             if (maxImageWidthInput) maxImageWidthInput.value = maxImageWidth ?? '';
             if (maxImageFileSizeInput) maxImageFileSizeInput.value = maxImageFileSize ?? '';
             if (maxFileSizeInput) maxFileSizeInput.value = maxFileSize ?? '';
+            updateSizeDisplay(maxImageFileSizeInput, maxImageFileSizeMb);
+            updateSizeDisplay(maxFileSizeInput, maxFileSizeMb);
             setStatus(settingsStatus, 'Loaded');
         } else {
             setStatus(settingsStatus, data.error || 'Failed to load', true);
@@ -453,6 +465,13 @@ async function saveSettings() {
         console.error('Save settings error:', error);
         setStatus(settingsStatus, 'Save failed', true);
     }
+}
+
+function updateSizeDisplay(inputEl, displayEl) {
+    if (!inputEl || !displayEl) return;
+    const bytes = parseInt(inputEl.value, 10);
+    const mb = isNaN(bytes) ? 0 : bytes / (1024 * 1024);
+    displayEl.textContent = `≈ ${mb.toFixed(2)} MB`;
 }
 
 async function loadPage(page, editorEl, statusEl, codeEl) {
@@ -574,18 +593,30 @@ function displayGalleries(galleries) {
         
         const name = document.createElement('div');
         name.className = 'gallery-name';
-        name.textContent = gallery.name;
+        const nameText = document.createElement('span');
+        nameText.className = 'gallery-name-text';
+        nameText.textContent = gallery.name;
+        nameText.onclick = () => {
+            window.open(`../?gallery=${encodeURIComponent(gallery.name)}`, '_blank');
+        };
         
         const badges = document.createElement('div');
         badges.className = 'badge-row';
         const viewBadge = document.createElement('span');
         viewBadge.className = hasViewPassword ? 'password-badge' : 'no-password-badge';
-        viewBadge.textContent = hasViewPassword ? 'View protected' : 'View open';
+        viewBadge.textContent = hasViewPassword ? 'Login is needed to view' : 'Anyone can view';
         const editBadge = document.createElement('span');
         editBadge.className = hasEditPassword ? 'password-badge' : 'no-password-badge';
-        editBadge.textContent = hasEditPassword ? 'Edit protected' : 'Edit open';
+        let editText = 'Anyone can change/upload';
+        if (hasEditPassword) {
+            editText = 'Login is needed to change/upload';
+        } else if (hasViewPassword) {
+            editText = 'Viewer can change/upload';
+        }
+        editBadge.textContent = editText;
         badges.appendChild(viewBadge);
         badges.appendChild(editBadge);
+        name.appendChild(nameText);
         name.appendChild(badges);
         
         const meta = document.createElement('div');
@@ -597,13 +628,6 @@ function displayGalleries(galleries) {
         
         const actions = document.createElement('div');
         actions.className = 'gallery-actions';
-        
-        const viewBtn = document.createElement('button');
-        viewBtn.className = 'btn-secondary';
-        viewBtn.textContent = 'View';
-        viewBtn.onclick = () => {
-            window.open(`../?gallery=${encodeURIComponent(gallery.name)}`, '_blank');
-        };
         
         const viewPasswordBtn = document.createElement('button');
         viewPasswordBtn.className = 'btn-secondary';
@@ -653,7 +677,6 @@ function displayGalleries(galleries) {
             }
         };
         
-        actions.appendChild(viewBtn);
         actions.appendChild(viewPasswordBtn);
         actions.appendChild(editPasswordBtn);
         actions.appendChild(renameBtn);
