@@ -4,9 +4,15 @@ let currentFiles = [];
 let currentIndex = 0;
 let currentDir = '';
 let currentView = 'dir';
-let galleryPassword = '';
-let galleryHasPassword = false;
-let isLoggedIn = false;
+let galleryPassword = ''; // editor password
+let viewerPassword = '';
+let galleryHasPassword = false; // backward compatibility (editor)
+let galleryHasEditPassword = false;
+let galleryHasViewPassword = false;
+let hasViewAccess = false;
+let isLoggedIn = false; // editor access
+const DEFAULT_PAGE_TITLE = 'Gallery';
+const DEFAULT_PAGE_DESC = 'Lets share some photos';
 
 // DOM Elements
 const galleryInput = document.getElementById('gallery-input');
@@ -52,6 +58,7 @@ const lightboxRightHotspot = document.getElementById('lightbox-right-hotspot');
 
 // Initialize
 window.addEventListener('DOMContentLoaded', () => {
+    setPageMetadata();
     // Check URL parameter
     const urlParams = new URLSearchParams(window.location.search);
     const galleryParam = urlParams.get('gallery');
@@ -146,36 +153,83 @@ async function verifyPassword(password) {
     if (!currentGallery) return;
     
     try {
-        // Verify password by attempting to delete a non-existent file
-        // This will fail with 404 (file not found) if password is correct, or 401 if password is wrong
-        const testResponse = await fetch(`api/index.php?action=delete&gallery=${encodeURIComponent(currentGallery)}&file=__password_test__&password=${encodeURIComponent(password)}`, {
-            method: 'GET'
-        });
-        
-        // If we get 401, password is wrong
-        if (testResponse.status === 401) {
-            alert('Invalid password');
+        // First, unlock view access (if required)
+        const viewAuthUrl = `api/index.php?action=auth&type=view&gallery=${encodeURIComponent(currentGallery)}&password=${encodeURIComponent(password)}`;
+        const viewAuthResponse = await fetch(viewAuthUrl);
+        const viewAuthData = await viewAuthResponse.json();
+        if (viewAuthResponse.status === 401) {
+            alert('Invalid view password');
             if (headerPasswordInput) headerPasswordInput.value = '';
+            viewerPassword = '';
+            sessionStorage.removeItem(`gallery_view_password_${currentGallery}`);
+            hasViewAccess = false;
+            updateLoginUI();
             return;
         }
-        
-        // Password is valid (we'll get 404 for file not found, which is fine)
-        galleryPassword = password;
-        sessionStorage.setItem(`gallery_password_${currentGallery}`, password);
-        isLoggedIn = true;
-        updateLoginUI();
+        if (viewAuthResponse.ok && viewAuthData.success) {
+            galleryHasViewPassword = viewAuthData.hasViewPassword || false;
+            if (galleryHasViewPassword) {
+                viewerPassword = password;
+                sessionStorage.setItem(`gallery_view_password_${currentGallery}`, password);
+            } else {
+                viewerPassword = '';
+                sessionStorage.removeItem(`gallery_view_password_${currentGallery}`);
+            }
+            hasViewAccess = true;
+        }
+
+        // Then, try editor password (if one exists)
+        const shouldCheckEdit = viewAuthData.hasEditPassword || galleryHasEditPassword || galleryHasPassword;
+        if (shouldCheckEdit) {
+            const editorOk = await verifyEditorPassword(password);
+            if (editorOk) {
+                galleryPassword = password;
+                sessionStorage.setItem(`gallery_password_${currentGallery}`, password);
+                isLoggedIn = true;
+            } else {
+                galleryPassword = '';
+                sessionStorage.removeItem(`gallery_password_${currentGallery}`);
+                // stay in view-only mode
+                isLoggedIn = false;
+            }
+        } else {
+            galleryPassword = '';
+            sessionStorage.removeItem(`gallery_password_${currentGallery}`);
+            isLoggedIn = true; // no editor password set
+        }
+
+        await loadGallery(currentGallery, currentDir, currentView);
     } catch (error) {
         console.error('Password verification error:', error);
         alert('Failed to verify password');
     }
 }
 
+async function verifyEditorPassword(password) {
+    if (!currentGallery) return false;
+    const viewParam = viewerPassword ? `&viewPassword=${encodeURIComponent(viewerPassword)}` : '';
+    try {
+        const response = await fetch(`api/index.php?action=auth&type=edit&gallery=${encodeURIComponent(currentGallery)}&password=${encodeURIComponent(password)}${viewParam}`);
+        if (!response.ok) {
+            return false;
+        }
+        const data = await response.json();
+        return !!data.success;
+    } catch (error) {
+        console.error('Editor password verification failed:', error);
+        return false;
+    }
+}
+
 // Logout
 function logout() {
     galleryPassword = '';
+    viewerPassword = '';
     isLoggedIn = false;
+    hasViewAccess = !galleryHasViewPassword;
     if (currentGallery) {
         sessionStorage.removeItem(`gallery_password_${currentGallery}`);
+        sessionStorage.removeItem(`gallery_view_password_${currentGallery}`);
     }
     if (headerPasswordInput) headerPasswordInput.value = '';
     updateLoginUI();
@@ -193,49 +247,73 @@ function updateLoginUI() {
     
     if (headerRight) headerRight.style.display = 'flex';
     
-    // If gallery has no password, always show as logged in
-    if (!galleryHasPassword) {
-        isLoggedIn = true;
-        if (loginWrapper) loginWrapper.style.display = 'none';
-        if (loggedInWrapper) loggedInWrapper.style.display = 'none';
-        if (headerActions) headerActions.style.display = 'flex';
-        if (loginToggle) loginToggle.style.display = 'none';
-    } else {
-        // Gallery has password
-        if (isLoggedIn) {
-            if (loginWrapper) loginWrapper.style.display = 'none';
-            if (loggedInWrapper) loggedInWrapper.style.display = 'flex';
-            if (headerActions) headerActions.style.display = 'flex';
+    const isViewProtected = galleryHasViewPassword;
+    const isEditProtected = galleryHasEditPassword;
+    
+    // Handle view access first
+    if (isViewProtected && !hasViewAccess) {
+        const isMobile = window.matchMedia('(max-width: 768px)').matches;
+        if (isMobile) {
             if (loginToggle) {
-                loginToggle.style.display = 'none';
+                loginToggle.style.display = 'inline-flex';
                 loginWrapper.classList.remove('is-open');
                 loginToggle.setAttribute('aria-expanded', 'false');
             }
+            if (loginWrapper) loginWrapper.style.display = 'none';
         } else {
-            const isMobile = window.matchMedia('(max-width: 768px)').matches;
-            if (isMobile) {
-                if (loginToggle) {
-                    loginToggle.style.display = 'inline-flex';
-                    loginWrapper.classList.remove('is-open');
-                    loginToggle.setAttribute('aria-expanded', 'false');
-                }
-                if (loginWrapper) loginWrapper.style.display = 'none';
-            } else {
-                if (loginToggle) loginToggle.style.display = 'none';
-                if (loginWrapper) loginWrapper.style.display = 'flex';
-            }
-            if (loggedInWrapper) loggedInWrapper.style.display = 'none';
-            if (headerActions) headerActions.style.display = 'none';
+            if (loginToggle) loginToggle.style.display = 'none';
+            if (loginWrapper) loginWrapper.style.display = 'flex';
         }
+        if (loggedInWrapper) loggedInWrapper.style.display = 'none';
+        if (headerActions) headerActions.style.display = 'none';
+        if (titleActions) titleActions.style.display = 'none';
+        updateDeleteButtonsVisibility();
+        return;
     }
     
+    // No view password required or already unlocked
+    if (!isEditProtected) {
+        isLoggedIn = true;
+    }
+    
+    // Fully open gallery: no logout, no login UI
+    if (!isViewProtected && !isEditProtected) {
+        if (loginWrapper) loginWrapper.style.display = 'none';
+        if (loginToggle) loginToggle.style.display = 'none';
+        if (loggedInWrapper) loggedInWrapper.style.display = 'none';
+        if (headerActions) headerActions.style.display = 'flex';
+        if (titleActions) {
+            titleActions.style.display = currentGallery ? 'flex' : 'none';
+        }
+        if (uploadBtn) uploadBtn.style.display = 'block';
+        updateDeleteButtonsVisibility();
+        return;
+    }
+    
+    // View is unlocked at this point
+    if (loginWrapper) loginWrapper.style.display = 'none';
+    if (loginToggle) loginToggle.style.display = 'none';
+    if (headerActions) headerActions.style.display = 'flex';
     if (titleActions) {
         titleActions.style.display = currentGallery ? 'flex' : 'none';
     }
     
-    // Show/hide upload button and delete icons based on login status
+    // Logged-in UI shows for both view-only and editor modes
+    if (loggedInWrapper) {
+        const modeText = isLoggedIn || !isEditProtected ? 'Editor' : 'Viewer';
+        // Decide visibility: show logout only if protection exists
+        const shouldShowLogout = isViewProtected || isEditProtected;
+        loggedInWrapper.style.display = shouldShowLogout ? 'flex' : 'none';
+        if (logoutBtn) {
+            logoutBtn.textContent = modeText === 'Editor' ? 'Logout Editor' : 'Logout Viewer';
+            logoutBtn.style.display = shouldShowLogout ? 'inline-flex' : 'none';
+        }
+    }
+    
+    // Show/hide upload button and delete icons based on access
     if (uploadBtn) {
-        uploadBtn.style.display = isLoggedIn ? 'block' : 'none';
+        const canUpload = hasViewAccess && (!isEditProtected || isLoggedIn);
+        uploadBtn.style.display = canUpload ? 'block' : 'none';
     }
     
     // Update delete buttons visibility
@@ -246,8 +324,26 @@ function updateLoginUI() {
 function updateDeleteButtonsVisibility() {
     const deleteButtons = document.querySelectorAll('.delete-btn');
     deleteButtons.forEach(btn => {
-        btn.style.display = isLoggedIn ? 'flex' : 'none';
+        btn.style.display = isLoggedIn && hasViewAccess ? 'flex' : 'none';
     });
+}
+
+function setMetaTag(selector, content) {
+    const el = document.querySelector(selector);
+    if (el) {
+        el.setAttribute('content', content);
+    }
+}
+
+function setPageMetadata(galleryName, dir = '') {
+    const breadcrumb = dir ? `${galleryName} / ${dir}` : galleryName;
+    const title = breadcrumb ? breadcrumb : DEFAULT_PAGE_TITLE;
+    document.title = title;
+    setMetaTag('meta[name="description"]', DEFAULT_PAGE_DESC);
+    setMetaTag('meta[property="og:title"]', title);
+    setMetaTag('meta[property="og:description"]', DEFAULT_PAGE_DESC);
+    setMetaTag('meta[name="twitter:title"]', title);
+    setMetaTag('meta[name="twitter:description"]', DEFAULT_PAGE_DESC);
 }
 
 // Load gallery
@@ -255,6 +351,7 @@ async function loadGallery(galleryName, dir = '', view = currentView) {
     currentGallery = galleryName;
     currentDir = normalizeRelativePath(dir || '');
     currentView = view === 'flat' ? 'flat' : 'dir';
+    viewerPassword = sessionStorage.getItem(`gallery_view_password_${galleryName}`) || '';
     if (galleryTitle) {
         galleryTitle.textContent = galleryName;
         galleryTitle.style.display = 'block';
@@ -270,21 +367,47 @@ async function loadGallery(galleryName, dir = '', view = currentView) {
     try {
         const dirParam = currentDir ? `&dir=${encodeURIComponent(currentDir)}` : '';
         const viewParam = currentView ? `&view=${encodeURIComponent(currentView)}` : '';
-        const response = await fetch(`api/index.php?action=list&gallery=${encodeURIComponent(galleryName)}${dirParam}${viewParam}`);
+        const viewPasswordParam = viewerPassword ? `&viewPassword=${encodeURIComponent(viewerPassword)}` : '';
+        const response = await fetch(`api/index.php?action=list&gallery=${encodeURIComponent(galleryName)}${dirParam}${viewParam}${viewPasswordParam}`);
         const data = await response.json();
         
+        if (response.status === 401) {
+            galleryHasViewPassword = true;
+            galleryHasEditPassword = false;
+            hasViewAccess = false;
+            isLoggedIn = false;
+            galleryPassword = '';
+            viewerPassword = '';
+            sessionStorage.removeItem(`gallery_view_password_${galleryName}`);
+            if (headerPasswordInput) headerPasswordInput.value = '';
+            galleryGrid.innerHTML = '<div class="empty-state auth-required"><p>Password required to view this gallery.</p></div>';
+            if (galleryInfo) galleryInfo.style.display = 'none';
+            if (directoryList) directoryList.innerHTML = '';
+            if (headerRight) headerRight.style.display = 'flex';
+            setPageMetadata();
+            updateLoginUI();
+            return;
+        }
+
         if (data.success) {
             currentFiles = data.files;
             currentDir = normalizeRelativePath(data.dir || '');
             currentView = data.view === 'flat' ? 'flat' : 'dir';
-            galleryHasPassword = data.hasPassword || false;
+            galleryHasEditPassword = data.hasEditPassword ?? data.hasPassword ?? false;
+            galleryHasPassword = galleryHasEditPassword;
+            galleryHasViewPassword = data.hasViewPassword || false;
+            hasViewAccess = true;
+            if (!galleryHasViewPassword) {
+                viewerPassword = '';
+                sessionStorage.removeItem(`gallery_view_password_${galleryName}`);
+            }
             
             // Handle password based on gallery's password status
-            if (!galleryHasPassword) {
+            if (!galleryHasEditPassword) {
                 // No password required - clear any stored password
                 galleryPassword = '';
                 sessionStorage.removeItem(`gallery_password_${galleryName}`);
-                if (headerPasswordInput) headerPasswordInput.value = '';
+                if (headerPasswordInput) headerPasswordInput.value = viewerPassword || '';
                 isLoggedIn = true;
             } else {
                 // Gallery has password - load stored password if available
@@ -295,6 +418,9 @@ async function loadGallery(galleryName, dir = '', view = currentView) {
                     isLoggedIn = true;
                 } else {
                     galleryPassword = '';
+                    if (headerPasswordInput && !headerPasswordInput.value) {
+                        headerPasswordInput.value = viewerPassword || '';
+                    }
                     isLoggedIn = false;
                 }
             }
@@ -303,6 +429,7 @@ async function loadGallery(galleryName, dir = '', view = currentView) {
             displayGallery(data.files, hasDirectories);
             updateBreadcrumb(hasDirectories);
             updateViewToggleLabel();
+            setPageMetadata(currentGallery, currentDir);
             updateLoginUI();
 
             if (galleryInfo) galleryInfo.style.display = 'flex';
@@ -324,6 +451,7 @@ async function loadGallery(galleryName, dir = '', view = currentView) {
             }
             if (headerActions) headerActions.style.display = 'none';
             if (titleActions) titleActions.style.display = 'none';
+            setPageMetadata();
         }
     } catch (error) {
         console.error('Error loading gallery:', error);
@@ -339,6 +467,7 @@ async function loadGallery(galleryName, dir = '', view = currentView) {
         }
         if (headerActions) headerActions.style.display = 'none';
         if (titleActions) titleActions.style.display = 'none';
+        setPageMetadata();
     }
 }
 
@@ -530,8 +659,8 @@ if (downloadZipBtn) {
         if (!currentGallery) {
             return;
         }
-        // Download zip - available to everyone, no password needed
-        window.location.href = `api/index.php?action=download_zip&gallery=${encodeURIComponent(currentGallery)}`;
+        const viewParam = viewerPassword ? `&viewPassword=${encodeURIComponent(viewerPassword)}` : '';
+        window.location.href = `api/index.php?action=download_zip&gallery=${encodeURIComponent(currentGallery)}${viewParam}`;
     });
 }
 
@@ -832,6 +961,9 @@ async function uploadFile(file, relativePath) {
         
         // Only include password parameter if gallery has password
         let uploadUrl = `api/index.php?action=upload&gallery=${encodeURIComponent(currentGallery)}`;
+        if (galleryHasViewPassword && viewerPassword) {
+            uploadUrl += `&viewPassword=${encodeURIComponent(viewerPassword)}`;
+        }
         if (galleryHasPassword && galleryPassword) {
             uploadUrl += `&password=${encodeURIComponent(galleryPassword)}`;
         }
@@ -905,6 +1037,9 @@ async function deleteFile(filePath) {
     try {
         // Only include password parameter if gallery has password
         let deleteUrl = `api/index.php?action=delete&gallery=${encodeURIComponent(currentGallery)}&file=${encodeURIComponent(filePath)}`;
+        if (galleryHasViewPassword && viewerPassword) {
+            deleteUrl += `&viewPassword=${encodeURIComponent(viewerPassword)}`;
+        }
         if (galleryHasPassword && galleryPassword) {
             deleteUrl += `&password=${encodeURIComponent(galleryPassword)}`;
         }
@@ -1049,7 +1184,8 @@ lightbox.addEventListener('click', (e) => {
 
 // Utility
 function getFileUrl(filePath) {
-    return `api/file.php?gallery=${encodeURIComponent(currentGallery)}&file=${encodeURIComponent(filePath)}`;
+    const viewParam = viewerPassword ? `&viewPassword=${encodeURIComponent(viewerPassword)}` : '';
+    return `api/file.php?gallery=${encodeURIComponent(currentGallery)}&file=${encodeURIComponent(filePath)}${viewParam}`;
 }
 
 function updateBreadcrumb(hasDirectories) {

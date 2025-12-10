@@ -15,6 +15,7 @@ const createModal = document.getElementById('create-modal');
 const createGalleryForm = document.getElementById('create-gallery-form');
 const newGalleryName = document.getElementById('new-gallery-name');
 const newGalleryPassword = document.getElementById('new-gallery-password');
+const newGalleryViewPassword = document.getElementById('new-gallery-view-password');
 const createCancel = document.getElementById('create-cancel');
 const passwordModal = document.getElementById('password-modal');
 const setPasswordForm = document.getElementById('set-password-form');
@@ -24,6 +25,7 @@ const passwordCancel = document.getElementById('password-cancel');
 const passwordModalTitle = document.getElementById('password-modal-title');
 const passwordSubmitBtn = document.getElementById('password-submit-btn');
 const removePasswordBtn = document.getElementById('remove-password-btn');
+const passwordTypeInput = document.getElementById('password-type');
 const changePasswordBtn = document.getElementById('change-password-btn');
 const changeAdminPasswordModal = document.getElementById('change-admin-password-modal');
 const changeAdminPasswordConfirm = document.getElementById('change-admin-password-confirm');
@@ -112,6 +114,7 @@ function setupEventListeners() {
         createGalleryBtn.addEventListener('click', () => {
             newGalleryName.value = '';
             newGalleryPassword.value = '';
+            if (newGalleryViewPassword) newGalleryViewPassword.value = '';
             createModal.style.display = 'flex';
         });
     }
@@ -128,6 +131,7 @@ function setupEventListeners() {
             
             const name = newGalleryName.value.trim();
             const password = newGalleryPassword.value.trim();
+            const viewPassword = newGalleryViewPassword ? newGalleryViewPassword.value.trim() : '';
             
             if (!name) {
                 alert('Gallery name is required');
@@ -140,6 +144,9 @@ function setupEventListeners() {
                 formData.append('name', name);
                 if (password) {
                     formData.append('password', password);
+                }
+                if (viewPassword) {
+                    formData.append('view_password', viewPassword);
                 }
                 
                 const response = await fetch('api.php?action=create_gallery', {
@@ -175,6 +182,7 @@ function setupEventListeners() {
             
             const gallery = passwordGalleryName.value;
             const password = passwordInput.value.trim();
+            const type = passwordTypeInput ? passwordTypeInput.value : 'edit';
             
             // Allow empty password to remove it
             try {
@@ -182,6 +190,7 @@ function setupEventListeners() {
                 formData.append('action', 'set_password');
                 formData.append('gallery', gallery);
                 formData.append('password', password);
+                formData.append('type', type);
                 
                 const response = await fetch('api.php?action=set_password', {
                     method: 'POST',
@@ -207,8 +216,9 @@ function setupEventListeners() {
     if (removePasswordBtn) {
         removePasswordBtn.addEventListener('click', async () => {
             const gallery = passwordGalleryName.value;
+            const type = passwordTypeInput ? passwordTypeInput.value : 'edit';
             
-            if (!confirm(`Are you sure you want to remove the password for gallery "${gallery}"?`)) {
+            if (!confirm(`Are you sure you want to remove the ${type} password for gallery "${gallery}"?`)) {
                 return;
             }
             
@@ -217,6 +227,7 @@ function setupEventListeners() {
                 formData.append('action', 'set_password');
                 formData.append('gallery', gallery);
                 formData.append('password', ''); // Empty password to remove
+                formData.append('type', type);
                 
                 const response = await fetch('api.php?action=set_password', {
                     method: 'POST',
@@ -460,6 +471,28 @@ function toggleEditor(editorEl, codeEl, toggleBtn) {
     }
 }
 
+function openPasswordModal(type, galleryName, hasPassword) {
+    if (passwordGalleryName) passwordGalleryName.value = galleryName;
+    if (passwordTypeInput) passwordTypeInput.value = type;
+    if (passwordInput) {
+        passwordInput.required = false;
+        passwordInput.value = '';
+        passwordInput.placeholder = hasPassword
+            ? `New ${type} password (leave empty to remove)`
+            : `New ${type} password (optional)`;
+    }
+    if (passwordModalTitle) {
+        passwordModalTitle.textContent = type === 'view' ? 'Viewer Password' : 'Editor Password';
+    }
+    if (passwordSubmitBtn) {
+        passwordSubmitBtn.textContent = hasPassword ? 'Change Password' : 'Set Password';
+    }
+    if (removePasswordBtn) {
+        removePasswordBtn.style.display = hasPassword ? 'block' : 'none';
+    }
+    if (passwordModal) passwordModal.style.display = 'flex';
+}
+
 // Display galleries
 function displayGalleries(galleries) {
     if (galleries.length === 0) {
@@ -475,15 +508,24 @@ function displayGalleries(galleries) {
         
         const info = document.createElement('div');
         info.className = 'gallery-info';
+        const hasEditPassword = gallery.hasEditPassword ?? gallery.hasPassword;
+        const hasViewPassword = gallery.hasViewPassword ?? false;
         
         const name = document.createElement('div');
         name.className = 'gallery-name';
         name.textContent = gallery.name;
         
-        const badge = document.createElement('span');
-        badge.className = gallery.hasPassword ? 'password-badge' : 'no-password-badge';
-        badge.textContent = gallery.hasPassword ? 'Protected' : 'No password';
-        name.appendChild(badge);
+        const badges = document.createElement('div');
+        badges.className = 'badge-row';
+        const viewBadge = document.createElement('span');
+        viewBadge.className = hasViewPassword ? 'password-badge' : 'no-password-badge';
+        viewBadge.textContent = hasViewPassword ? 'View protected' : 'View open';
+        const editBadge = document.createElement('span');
+        editBadge.className = hasEditPassword ? 'password-badge' : 'no-password-badge';
+        editBadge.textContent = hasEditPassword ? 'Edit protected' : 'Edit open';
+        badges.appendChild(viewBadge);
+        badges.appendChild(editBadge);
+        name.appendChild(badges);
         
         const meta = document.createElement('div');
         meta.className = 'gallery-meta';
@@ -502,29 +544,15 @@ function displayGalleries(galleries) {
             window.open(`../?gallery=${encodeURIComponent(gallery.name)}`, '_blank');
         };
         
-        const passwordBtn = document.createElement('button');
-        passwordBtn.className = 'btn-secondary';
-        passwordBtn.textContent = gallery.hasPassword ? 'Change Password' : 'Set Password';
-        passwordBtn.onclick = () => {
-            passwordGalleryName.value = gallery.name;
-            if (passwordInput) passwordInput.value = '';
-            if (passwordModalTitle) {
-                passwordModalTitle.textContent = gallery.hasPassword ? 'Change Password' : 'Set Password';
-            }
-            if (passwordSubmitBtn) {
-                passwordSubmitBtn.textContent = gallery.hasPassword ? 'Change Password' : 'Set Password';
-            }
-            if (removePasswordBtn) {
-                removePasswordBtn.style.display = gallery.hasPassword ? 'block' : 'none';
-            }
-            if (passwordInput) {
-                passwordInput.required = false;
-                passwordInput.placeholder = gallery.hasPassword 
-                    ? 'New password (leave empty to remove password)' 
-                    : 'New password (optional)';
-            }
-            if (passwordModal) passwordModal.style.display = 'flex';
-        };
+        const viewPasswordBtn = document.createElement('button');
+        viewPasswordBtn.className = 'btn-secondary';
+        viewPasswordBtn.textContent = hasViewPassword ? 'Change View Password' : 'Set View Password';
+        viewPasswordBtn.onclick = () => openPasswordModal('view', gallery.name, hasViewPassword);
+
+        const editPasswordBtn = document.createElement('button');
+        editPasswordBtn.className = 'btn-secondary';
+        editPasswordBtn.textContent = hasEditPassword ? 'Change Editor Password' : 'Set Editor Password';
+        editPasswordBtn.onclick = () => openPasswordModal('edit', gallery.name, hasEditPassword);
         
         const renameBtn = document.createElement('button');
         renameBtn.className = 'btn-secondary';
@@ -565,7 +593,8 @@ function displayGalleries(galleries) {
         };
         
         actions.appendChild(viewBtn);
-        actions.appendChild(passwordBtn);
+        actions.appendChild(viewPasswordBtn);
+        actions.appendChild(editPasswordBtn);
         actions.appendChild(renameBtn);
         actions.appendChild(deleteBtn);
         

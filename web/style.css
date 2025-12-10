@@ -243,8 +243,25 @@ body {
     gap: 0.75rem;
 }
 
-.logged-in-text {
-    display: none;
+/* logged-in-text removed (mode now shown on logout button) */
+
+.auth-required {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    width: 100%;
+    min-height: 200px;
+    padding: 1.5rem;
+}
+
+.gallery-grid .auth-required,
+.gallery-grid .empty-state {
+    grid-column: 1 / -1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
 }
 
 .header-password-input {

@@ -85,7 +85,8 @@
                         <h3>Create New Gallery</h3>
                         <form id="create-gallery-form">
                             <input type="text" id="new-gallery-name" placeholder="Gallery name" required>
-                            <input type="password" id="new-gallery-password" placeholder="Password (optional)">
+                            <input type="password" id="new-gallery-password" placeholder="Editor password (optional)">
+                            <input type="password" id="new-gallery-view-password" placeholder="Viewer password (optional)">
                             <div class="modal-actions">
                                 <button type="submit" class="btn-primary">Create</button>
                                 <button type="button" id="create-cancel" class="btn-secondary">Cancel</button>
@@ -100,6 +101,7 @@
                         <h3 id="password-modal-title">Set Password</h3>
                         <form id="set-password-form">
                             <input type="hidden" id="password-gallery-name">
+                            <input type="hidden" id="password-type" value="edit">
                             <input type="password" id="password-input" placeholder="New password (leave empty to remove password)">
                             <div class="modal-actions">
                                 <button type="submit" class="btn-primary" id="password-submit-btn">Set Password</button>

@@ -49,6 +49,48 @@ function verifyGalleryPassword($gallery, $password) {
 }
 
 /**
+ * Verify gallery view password
+ */
+function verifyGalleryViewPassword($gallery, $password) {
+    $passwordFile = getGalleryPath($gallery) . '/.viewpassword';
+    
+    if (!file_exists($passwordFile)) {
+        return true; // No password set, view is open
+    }
+    
+    if ($password === '') {
+        return false;
+    }
+    
+    $storedHash = trim(file_get_contents($passwordFile));
+    return password_verify($password, $storedHash);
+}
+
+/**
+ * Verify view access using either the view password or the editor password
+ */
+function verifyGalleryViewAccess($gallery, $password) {
+    $viewFile = getGalleryPath($gallery) . '/.viewpassword';
+    
+    // No view password set, open access
+    if (!file_exists($viewFile)) {
+        return true;
+    }
+    
+    if ($password === '') {
+        return false;
+    }
+    
+    // Accept dedicated view password
+    if (verifyGalleryViewPassword($gallery, $password)) {
+        return true;
+    }
+    
+    // Accept editor password as fallback
+    return verifyGalleryPassword($gallery, $password);
+}
+
+/**
  * Set gallery password
  */
 function setGalleryPassword($gallery, $password) {
@@ -59,6 +101,22 @@ function setGalleryPassword($gallery, $password) {
     }
     
     $passwordFile = $galleryPath . '/.password';
+    $hash = password_hash($password, PASSWORD_DEFAULT);
+    
+    return file_put_contents($passwordFile, $hash) !== false;
+}
+
+/**
+ * Set gallery view password
+ */
+function setGalleryViewPassword($gallery, $password) {
+    $galleryPath = getGalleryPath($gallery);
+    
+    if (!is_dir($galleryPath)) {
+        return false;
+    }
+    
+    $passwordFile = $galleryPath . '/.viewpassword';
     $hash = password_hash($password, PASSWORD_DEFAULT);
     
     return file_put_contents($passwordFile, $hash) !== false;
@@ -202,7 +260,7 @@ function listGalleryDirectory($gallery, $dir = '') {
         $name = $entry->getFilename();
         
         // Skip hidden and password files
-        if ($name[0] === '.' || $name === '.password') {
+        if ($name[0] === '.' || $name === '.password' || $name === '.viewpassword') {
             continue;
         }
         
@@ -371,7 +429,7 @@ function scanGallery($gallery, $subfolder = '') {
             $filename = $file->getFilename();
             
             // Skip hidden files and password files
-            if ($filename[0] === '.' || $filename === '.password') {
+            if ($filename[0] === '.' || $filename === '.password' || $filename === '.viewpassword') {
                 continue;
             }
             

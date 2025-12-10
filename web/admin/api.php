@@ -130,6 +130,7 @@ function handleListGalleries() {
         
         if (is_dir($galleryPath)) {
             $hasPassword = file_exists($galleryPath . '/.password');
+            $hasViewPassword = file_exists($galleryPath . '/.viewpassword');
             
             // Count files (excluding thumbnails and password files)
             $fileCount = 0;
@@ -142,7 +143,7 @@ function handleListGalleries() {
                     $filename = $file->getFilename();
                     
                     // Skip hidden files and password files
-                    if ($filename[0] === '.' || $filename === '.password') {
+                    if ($filename[0] === '.' || $filename === '.password' || $filename === '.viewpassword') {
                         continue;
                     }
                     
@@ -161,6 +162,8 @@ function handleListGalleries() {
             $galleries[] = [
                 'name' => $dir,
                 'hasPassword' => $hasPassword,
+                'hasEditPassword' => $hasPassword,
+                'hasViewPassword' => $hasViewPassword,
                 'fileCount' => $fileCount
             ];
         }
@@ -177,6 +180,7 @@ function handleCreateGallery() {
     
     $name = $_POST['name'] ?? '';
     $password = $_POST['password'] ?? '';
+    $viewPassword = $_POST['view_password'] ?? '';
     
     if (empty($name)) {
         http_response_code(400);
@@ -210,6 +214,9 @@ function handleCreateGallery() {
     if (!empty($password)) {
         setGalleryPassword($sanitized, $password);
     }
+    if (!empty($viewPassword)) {
+        setGalleryViewPassword($sanitized, $viewPassword);
+    }
     
     echo json_encode([
         'success' => true,
@@ -223,6 +230,7 @@ function handleSetPassword() {
     
     $gallery = $_POST['gallery'] ?? '';
     $password = $_POST['password'] ?? '';
+    $type = $_POST['type'] ?? 'edit'; // 'edit' or 'view'
     
     if (empty($gallery)) {
         http_response_code(400);
@@ -238,7 +246,9 @@ function handleSetPassword() {
         return;
     }
     
-    $passwordFile = $galleryPath . '/.password';
+    $passwordFile = $type === 'view'
+        ? $galleryPath . '/.viewpassword'
+        : $galleryPath . '/.password';
     
     // If password is empty, remove the password file
     if (empty($password)) {
@@ -246,7 +256,7 @@ function handleSetPassword() {
             if (unlink($passwordFile)) {
                 echo json_encode([
                     'success' => true,
-                    'message' => 'Password removed successfully'
+                    'message' => ucfirst($type) . ' password removed successfully'
                 ]);
             } else {
                 http_response_code(500);
@@ -256,17 +266,18 @@ function handleSetPassword() {
             // Password file doesn't exist, already no password
             echo json_encode([
                 'success' => true,
-                'message' => 'Gallery already has no password'
+                'message' => 'Gallery already has no ' . $type . ' password'
             ]);
         }
         return;
     }
     
     // Set new password
-    if (setGalleryPassword($gallery, $password)) {
+    $setter = $type === 'view' ? 'setGalleryViewPassword' : 'setGalleryPassword';
+    if ($setter($gallery, $password)) {
         echo json_encode([
             'success' => true,
-            'message' => 'Password set successfully'
+            'message' => ucfirst($type) . ' password set successfully'
         ]);
     } else {
         http_response_code(500);

@@ -8,6 +8,7 @@ require_once __DIR__ . '/helper.php';
 
 $gallery = $_GET['gallery'] ?? '';
 $file = $_GET['file'] ?? '';
+$viewPassword = $_GET['viewPassword'] ?? '';
 
 if (empty($gallery) || empty($file)) {
     http_response_code(400);
@@ -20,6 +21,15 @@ $galleryPath = getGalleryPath($gallery);
 if (!is_dir($galleryPath)) {
     http_response_code(404);
     die('Gallery not found');
+}
+
+// Validate view password if required
+$viewPasswordFile = $galleryPath . '/.viewpassword';
+if (file_exists($viewPasswordFile) && !verifyGalleryViewAccess($gallery, $viewPassword)) {
+    http_response_code(401);
+    header('Content-Type: application/json');
+    echo json_encode(['error' => 'View password required or invalid']);
+    exit;
 }
 
 // Validate file path to prevent directory traversal
@@ -38,7 +48,7 @@ if (!file_exists($filePath)) {
 
 // Deny access to password files and other sensitive files
 $filename = basename($filePath);
-if ($filename[0] === '.' || $filename === '.password' || $filename === '.username') {
+if ($filename[0] === '.' || $filename === '.password' || $filename === '.viewpassword' || $filename === '.username') {
     http_response_code(403);
     die('Access denied');
 }

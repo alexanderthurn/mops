@@ -30,6 +30,10 @@ switch ($action) {
         handleDownloadZip();
         break;
     
+    case 'auth':
+        handleAuth();
+        break;
+    
     default:
         http_response_code(400);
         echo json_encode(['error' => 'Invalid action']);
@@ -40,6 +44,7 @@ function handleList() {
     $gallery = $_GET['gallery'] ?? '';
     $dir = $_GET['dir'] ?? '';
     $view = $_GET['view'] ?? 'dir';
+    $viewPassword = $_GET['viewPassword'] ?? '';
     
     if (empty($gallery)) {
         http_response_code(400);
@@ -53,6 +58,15 @@ function handleList() {
         http_response_code(404);
         echo json_encode(['error' => 'Gallery not found']);
         return;
+    }
+    
+    $hasViewPassword = file_exists($galleryPath . '/.viewpassword');
+    if ($hasViewPassword) {
+        if (!verifyGalleryViewAccess($gallery, $viewPassword)) {
+            http_response_code(401);
+            echo json_encode(['error' => 'View password required or invalid']);
+            return;
+        }
     }
     
     $dir = sanitizeRelativePath($dir);
@@ -77,13 +91,16 @@ function handleList() {
         'view' => $view === 'flat' ? 'flat' : 'dir',
         'directories' => $listing['dirs'],
         'files' => $listing['files'],
-        'hasPassword' => $hasPassword
+        'hasPassword' => $hasPassword,
+        'hasEditPassword' => $hasPassword,
+        'hasViewPassword' => $hasViewPassword
     ]);
 }
 
 function handleUpload() {
     $gallery = $_GET['gallery'] ?? '';
     $password = $_GET['password'] ?? '';
+    $viewPassword = $_GET['viewPassword'] ?? '';
     
     if (empty($gallery)) {
         http_response_code(400);
@@ -93,6 +110,13 @@ function handleUpload() {
     
     $galleryPath = getGalleryPath($gallery);
     $hasPassword = file_exists($galleryPath . '/.password');
+    $hasViewPassword = file_exists($galleryPath . '/.viewpassword');
+    
+    if ($hasViewPassword && !verifyGalleryViewAccess($gallery, $viewPassword)) {
+        http_response_code(401);
+        echo json_encode(['error' => 'View password required or invalid']);
+        return;
+    }
     
     // Only require password if gallery has password protection
     if ($hasPassword) {
@@ -226,6 +250,7 @@ function handleDelete() {
     $gallery = $_GET['gallery'] ?? '';
     $file = $_GET['file'] ?? '';
     $password = $_GET['password'] ?? '';
+    $viewPassword = $_GET['viewPassword'] ?? '';
     
     if (empty($gallery) || empty($file)) {
         http_response_code(400);
@@ -235,6 +260,13 @@ function handleDelete() {
     
     $galleryPath = getGalleryPath($gallery);
     $hasPassword = file_exists($galleryPath . '/.password');
+    $hasViewPassword = file_exists($galleryPath . '/.viewpassword');
+    
+    if ($hasViewPassword && !verifyGalleryViewAccess($gallery, $viewPassword)) {
+        http_response_code(401);
+        echo json_encode(['error' => 'View password required or invalid']);
+        return;
+    }
     
     // Only require password if gallery has password protection
     if ($hasPassword) {
@@ -290,6 +322,7 @@ function handleDelete() {
 
 function handleDownloadZip() {
     $gallery = $_GET['gallery'] ?? '';
+    $viewPassword = $_GET['viewPassword'] ?? '';
     
     if (empty($gallery)) {
         http_response_code(400);
@@ -299,6 +332,13 @@ function handleDownloadZip() {
     }
     
     $galleryPath = getGalleryPath($gallery);
+    $hasViewPassword = file_exists($galleryPath . '/.viewpassword');
+    if ($hasViewPassword && !verifyGalleryViewAccess($gallery, $viewPassword)) {
+        http_response_code(401);
+        header('Content-Type: application/json');
+        echo json_encode(['error' => 'View password required or invalid']);
+        return;
+    }
     
     if (!is_dir($galleryPath)) {
         http_response_code(404);
@@ -339,7 +379,7 @@ function handleDownloadZip() {
             $filename = $file->getFilename();
             
             // Skip hidden files and password files
-            if ($filename[0] === '.' || $filename === '.password') {
+            if ($filename[0] === '.' || $filename === '.password' || $filename === '.viewpassword') {
                 continue;
             }
             
@@ -380,5 +420,73 @@ function handleDownloadZip() {
     // Clean up temporary file
     unlink($zipPath);
     exit;
+}
+
+function handleAuth() {
+    $gallery = $_GET['gallery'] ?? $_POST['gallery'] ?? '';
+    $type = $_GET['type'] ?? $_POST['type'] ?? 'edit';
+    $password = $_GET['password'] ?? $_POST['password'] ?? '';
+    $viewPassword = $_GET['viewPassword'] ?? $_POST['viewPassword'] ?? '';
+    
+    if (empty($gallery)) {
+        http_response_code(400);
+        echo json_encode(['error' => 'Gallery name required']);
+        return;
+    }
+    
+    $galleryPath = getGalleryPath($gallery);
+    if (!is_dir($galleryPath)) {
+        http_response_code(404);
+        echo json_encode(['error' => 'Gallery not found']);
+        return;
+    }
+    
+    $hasEditPassword = file_exists($galleryPath . '/.password');
+    $hasViewPassword = file_exists($galleryPath . '/.viewpassword');
+    
+    if ($type === 'view') {
+        $pwToUse = $password !== '' ? $password : $viewPassword;
+        if ($hasViewPassword && !verifyGalleryViewAccess($gallery, $pwToUse)) {
+            http_response_code(401);
+            echo json_encode(['error' => 'Invalid view password']);
+            return;
+        }
+        
+        echo json_encode([
+            'success' => true,
+            'hasEditPassword' => $hasEditPassword,
+            'hasViewPassword' => $hasViewPassword
+        ]);
+        return;
+    }
+    
+    // Default: edit/auth for uploads & deletes
+    if (!$hasEditPassword) {
+        echo json_encode([
+            'success' => true,
+            'hasEditPassword' => false,
+            'hasViewPassword' => $hasViewPassword
+        ]);
+        return;
+    }
+
+    $viewGatePassword = $viewPassword !== '' ? $viewPassword : $password;
+    if ($hasViewPassword && !verifyGalleryViewAccess($gallery, $viewGatePassword)) {
+        http_response_code(401);
+        echo json_encode(['error' => 'Invalid view password']);
+        return;
+    }
+    
+    if (!verifyGalleryPassword($gallery, $password)) {
+        http_response_code(401);
+        echo json_encode(['error' => 'Invalid editor password']);
+        return;
+    }
+    
+    echo json_encode([
+        'success' => true,
+        'hasEditPassword' => $hasEditPassword,
+        'hasViewPassword' => $hasViewPassword
+    ]);
 }
 
