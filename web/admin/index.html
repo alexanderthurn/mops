@@ -48,6 +48,37 @@
                     <div id="galleries-list" class="galleries-list"></div>
                 </section>
 
+                <section class="content-section">
+                    <h2>Legal Pages</h2>
+                    <div class="editor-grid">
+                        <div class="editor-card">
+                            <div class="editor-header">
+                                <h3>Data Privacy</h3>
+                                <div class="editor-actions">
+                                    <span id="dataprivacy-status" class="editor-status"></span>
+                                    <button id="dataprivacy-toggle" class="btn-secondary btn-ghost">HTML</button>
+                                    <button id="save-dataprivacy-btn" class="btn-primary">Save</button>
+                                </div>
+                            </div>
+                            <div id="dataprivacy-editor" class="wysiwyg" contenteditable="true"></div>
+                            <textarea id="dataprivacy-code" class="code-editor" spellcheck="false" style="display: none;"></textarea>
+                        </div>
+
+                        <div class="editor-card">
+                            <div class="editor-header">
+                                <h3>Imprint</h3>
+                                <div class="editor-actions">
+                                    <span id="imprint-status" class="editor-status"></span>
+                                    <button id="imprint-toggle" class="btn-secondary btn-ghost">HTML</button>
+                                    <button id="save-imprint-btn" class="btn-primary">Save</button>
+                                </div>
+                            </div>
+                            <div id="imprint-editor" class="wysiwyg" contenteditable="true"></div>
+                            <textarea id="imprint-code" class="code-editor" spellcheck="false" style="display: none;"></textarea>
+                        </div>
+                    </div>
+                </section>
+
                 <!-- Create Gallery Modal -->
                 <div id="create-modal" class="modal" style="display: none;">
                     <div class="modal-content">

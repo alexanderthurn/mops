@@ -28,6 +28,16 @@ const changePasswordBtn = document.getElementById('change-password-btn');
 const changeAdminPasswordModal = document.getElementById('change-admin-password-modal');
 const changeAdminPasswordConfirm = document.getElementById('change-admin-password-confirm');
 const changeAdminPasswordCancel = document.getElementById('change-admin-password-cancel');
+const dataPrivacyEditor = document.getElementById('dataprivacy-editor');
+const imprintEditor = document.getElementById('imprint-editor');
+const saveDataPrivacyBtn = document.getElementById('save-dataprivacy-btn');
+const saveImprintBtn = document.getElementById('save-imprint-btn');
+const dataPrivacyStatus = document.getElementById('dataprivacy-status');
+const imprintStatus = document.getElementById('imprint-status');
+const dataPrivacyCode = document.getElementById('dataprivacy-code');
+const imprintCode = document.getElementById('imprint-code');
+const dataPrivacyToggle = document.getElementById('dataprivacy-toggle');
+const imprintToggle = document.getElementById('imprint-toggle');
 
 // Initialize
 window.addEventListener('DOMContentLoaded', () => {
@@ -69,6 +79,7 @@ function setupEventListeners() {
             loginScreen.style.display = 'none';
             adminDashboard.style.display = 'block';
             loadGalleries();
+            loadPageContent();
         } else {
             showError(data.error || 'Invalid credentials');
         }
@@ -294,6 +305,22 @@ function setupEventListeners() {
             }
         });
     }
+
+    if (saveDataPrivacyBtn && dataPrivacyEditor) {
+        saveDataPrivacyBtn.addEventListener('click', () => savePage('dataprivacy.html', dataPrivacyEditor, dataPrivacyStatus, dataPrivacyCode));
+    }
+
+    if (saveImprintBtn && imprintEditor) {
+        saveImprintBtn.addEventListener('click', () => savePage('imprint.html', imprintEditor, imprintStatus, imprintCode));
+    }
+
+    if (dataPrivacyToggle && dataPrivacyEditor && dataPrivacyCode) {
+        dataPrivacyToggle.addEventListener('click', () => toggleEditor(dataPrivacyEditor, dataPrivacyCode, dataPrivacyToggle));
+    }
+
+    if (imprintToggle && imprintEditor && imprintCode) {
+        imprintToggle.addEventListener('click', () => toggleEditor(imprintEditor, imprintCode, imprintToggle));
+    }
 }
 
 // Check login status
@@ -308,6 +335,7 @@ async function checkLoginStatus() {
                 loginScreen.style.display = 'none';
                 adminDashboard.style.display = 'block';
                 loadGalleries();
+                loadPageContent();
                 return;
             }
         }
@@ -344,6 +372,91 @@ async function loadGalleries() {
             loginScreen.style.display = 'flex';
             adminDashboard.style.display = 'none';
         }
+    }
+}
+
+// Load legal pages
+async function loadPageContent() {
+    await Promise.all([
+        loadPage('dataprivacy.html', dataPrivacyEditor, dataPrivacyStatus, dataPrivacyCode),
+        loadPage('imprint.html', imprintEditor, imprintStatus, imprintCode)
+    ]);
+}
+
+async function loadPage(page, editorEl, statusEl, codeEl) {
+    if (!editorEl || !statusEl) return;
+    setStatus(statusEl, 'Loading...');
+    try {
+        const response = await fetch(`api.php?action=get_page&page=${encodeURIComponent(page)}`);
+        const data = await response.json();
+        if (response.ok && data.success) {
+            editorEl.innerHTML = data.content || '';
+            if (codeEl) {
+                codeEl.value = data.content || '';
+            }
+            setStatus(statusEl, 'Loaded');
+        } else {
+            setStatus(statusEl, data.error || 'Failed to load', true);
+        }
+    } catch (error) {
+        console.error('Load page error:', error);
+        setStatus(statusEl, 'Failed to load', true);
+    }
+}
+
+async function savePage(page, editorEl, statusEl, codeEl) {
+    if (!editorEl || !statusEl) return;
+    setStatus(statusEl, 'Saving...');
+    try {
+        const formData = new FormData();
+        formData.append('action', 'save_page');
+        formData.append('page', page);
+        const useCode = codeEl && codeEl.style.display !== 'none';
+        const content = useCode ? codeEl.value : editorEl.innerHTML;
+        formData.append('content', content);
+        
+        const response = await fetch('api.php?action=save_page', {
+            method: 'POST',
+            body: formData
+        });
+        const data = await response.json();
+        if (response.ok && data.success) {
+            setStatus(statusEl, 'Saved');
+        } else {
+            setStatus(statusEl, data.error || 'Save failed', true);
+        }
+    } catch (error) {
+        console.error('Save page error:', error);
+        setStatus(statusEl, 'Save failed', true);
+    }
+}
+
+function setStatus(el, text, isError = false) {
+    if (!el) return;
+    el.textContent = text;
+    el.style.color = isError ? 'var(--error)' : 'var(--text-secondary)';
+    if (!isError) {
+        setTimeout(() => {
+            el.textContent = '';
+        }, 2000);
+    }
+}
+
+function toggleEditor(editorEl, codeEl, toggleBtn) {
+    if (!editorEl || !codeEl || !toggleBtn) return;
+    const codeVisible = codeEl.style.display !== 'none';
+    if (!codeVisible) {
+        // Switch to code view
+        codeEl.value = editorEl.innerHTML;
+        codeEl.style.display = 'block';
+        editorEl.style.display = 'none';
+        toggleBtn.textContent = 'Visual';
+    } else {
+        // Switch to visual
+        editorEl.innerHTML = codeEl.value;
+        editorEl.style.display = 'block';
+        codeEl.style.display = 'none';
+        toggleBtn.textContent = 'HTML';
     }
 }
 

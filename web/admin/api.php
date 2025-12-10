@@ -43,6 +43,14 @@ switch ($action) {
         handleChangeAdminPassword();
         break;
     
+    case 'get_page':
+        handleGetPage();
+        break;
+    
+    case 'save_page':
+        handleSavePage();
+        break;
+    
     default:
         http_response_code(400);
         echo json_encode(['error' => 'Invalid action']);
@@ -331,6 +339,52 @@ function handleChangeAdminPassword() {
     } else {
         http_response_code(500);
         echo json_encode(['error' => 'Failed to reset credentials']);
+    }
+}
+
+function handleGetPage() {
+    requireAdmin();
+    
+    $page = $_GET['page'] ?? '';
+    $allowed = ['imprint.html', 'dataprivacy.html'];
+    
+    if (!in_array($page, $allowed, true)) {
+        http_response_code(400);
+        echo json_encode(['error' => 'Invalid page']);
+        return;
+    }
+    
+    $filePath = WEB_ROOT . '/' . $page;
+    if (!file_exists($filePath)) {
+        http_response_code(404);
+        echo json_encode(['error' => 'File not found']);
+        return;
+    }
+    
+    $content = file_get_contents($filePath);
+    echo json_encode(['success' => true, 'content' => $content]);
+}
+
+function handleSavePage() {
+    requireAdmin();
+    
+    $page = $_POST['page'] ?? '';
+    $content = $_POST['content'] ?? '';
+    $allowed = ['imprint.html', 'dataprivacy.html'];
+    
+    if (!in_array($page, $allowed, true)) {
+        http_response_code(400);
+        echo json_encode(['error' => 'Invalid page']);
+        return;
+    }
+    
+    $filePath = WEB_ROOT . '/' . $page;
+    
+    if (file_put_contents($filePath, $content) !== false) {
+        echo json_encode(['success' => true, 'message' => 'Page saved']);
+    } else {
+        http_response_code(500);
+        echo json_encode(['error' => 'Failed to save file']);
     }
 }
 
