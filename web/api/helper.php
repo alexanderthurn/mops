@@ -483,8 +483,8 @@ function generateThumbnail($imagePath) {
         $width = $imagick->getImageWidth();
         $height = $imagick->getImageHeight();
         
-        // Calculate thumbnail dimensions (max 300px, maintain aspect ratio)
-        $maxSize = 300;
+    // Calculate thumbnail dimensions (max 400px, maintain aspect ratio)
+    $maxSize = 400;
         if ($width > $height) {
             $newWidth = $maxSize;
             $newHeight = intval(($height / $width) * $maxSize);
