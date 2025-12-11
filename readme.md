@@ -1,43 +1,38 @@
-# MOPS
+# MOPS – Minimalistic Open Photo Share
 
-## minimalistic open photo share
+Lightweight self-hosted photo sharing. Upload the `web/` folder to any Apache/PHP host, set an admin password, and start collecting photos from friends with or without upload passwords.
 
-The most fluffy and photo share! Just upload it to your Apache/PHP server. It focuses on being fast, minimal, and easy: upload the `web/` folder, visit `admin/`, set an admin password, and let your friends add photos (passwordless or with password)
-
-## What it does
-
-- Simple hosting: upload the `web/` directory to your server and go.
-- Self-serve admin: visit `admin/` to set or change the admin password.
-- Passworded or passwordless uploads: choose per share if uploads need a password.
-- Drag-and-drop multi-upload: supports many files at once and even whole directories.
-- Subfolder browsing: shares can be nested; thumbnails are generated automatically.
-- Automatic thumbnails: imagick creates fast-loading thumbs on upload.
-- Zip export: your friends can download an entire share as a zip.
-
-## Quick start
-
-1) Copy `web/` to your Apache/PHP host (ImageMagick extension required).  
-2) Make sure `web/data/` is writable by the web server user.  
-3) Open `https://yourdomain/admin/` in the browser.  
-4) Set an admin user and password when prompted.  
-5) Create a share, just give it a name and a password (optional)
-6) Send the link of the share to your friends and let them upload
-7) Upload images (single, multi-file, or directory upload). Thumbnails generate on the fly.
-
-## Screenshots
-
-![Screenshot 1](misc/screenshots/1.jpg)
-![Screenshot 2](misc/screenshots/2.jpg)
-![Screenshot 3](misc/screenshots/3.jpg)
-![Screenshot 4](misc/screenshots/4.jpg)
+## Features
+- Fast, single-folder deploy (`web/`)
+- Zero database: stores everything on disk, no SQL setup
+- Admin UI at `/admin` to set the password and manage shares
+- Optional public share creation: let visitors open their own shares if enabled
+- Optional passwordless viewer uploads; per-share passwords supported
+- Drag-and-drop multi-upload and whole-directory upload
+- Automatic thumbnails via ImageMagick; subfolder browsing
+- Zip export of a whole share
 
 ## Requirements
-
-- PHP 7.4+ with ImageMagick enabled
+- PHP 7.4+ with ImageMagick/imagick enabled
 - Apache (or any PHP-capable server) with write access to `web/data/`
+- `zip` available on the server for archive downloads
+
+## Quick start
+1. Copy `web/` to your host (keep `.htaccess` files).
+2. Ensure `web/data/` is writable by the web server user (e.g. `chmod -R u+rwX web/data` or a matching owner).
+3. Open `https://yourdomain/admin/` and set the admin password when prompted.
+4. Create a share (with or without an upload password).
+5. Share the public URL; viewers can upload if allowed. Thumbnails are generated on first view.
+
+## Configuration
+Most defaults live in `web/api/settings.json`. Common knobs:
+- `maxImageWidth`, `maxImageFileSize`: resize limit and per-image max size.
+- `allowPublicGalleryCreation`: allow visitors to create new shares.
+- `publicDefault*`: defaults for publicly created galleries (max size, photo count, lifetime).
+- `default*`: defaults for admin-created galleries.
+- `contactEmail`: shown for contact/help links.
 
 ## File layout (key parts)
-
 ```
 web/
 ├── index.html      # Public share UI
@@ -48,9 +43,14 @@ web/
 └── data/           # Uploaded images and thumbnails (writable)
 ```
 
-## Notes
+## Security and maintenance
+- Admin password is hashed; pick a strong one and keep `/admin` private.
+- Keep `web/data/` writable but not listable; `.htaccess` is included.
+- Back up `web/data/` regularly; it holds originals and generated thumbs.
 
-- Passwords are stored hashed; use strong ones for admin.
-- Only image uploads are intended; keep `data/` writable and `.htaccess` in place.
-- Zip downloads are generated server-side for convenience.
+## Screenshots
+![Screenshot 1](misc/screenshots/1.jpg)
+![Screenshot 2](misc/screenshots/2.jpg)
+![Screenshot 3](misc/screenshots/3.jpg)
+![Screenshot 4](misc/screenshots/4.jpg)
 
