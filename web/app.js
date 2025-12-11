@@ -912,6 +912,7 @@ async function extendGalleryLifetime() {
         currentLimits = data.limits || currentLimits;
         currentSettings = data.settings || currentSettings;
         updateLimitBanner();
+        showExtendCelebration(data.expiresAt || currentLimits?.expiresAt);
         hideNeedMoreDialog();
         await loadGallery(currentGallery, currentDir, currentView);
     } catch (e) {
@@ -922,6 +923,59 @@ async function extendGalleryLifetime() {
 
 function hideNeedMoreDialog() {
     if (needMoreModal) needMoreModal.style.display = 'none';
+}
+
+function showExtendCelebration(expiresAt) {
+    // Remove any previous animation
+    const existing = document.querySelector('.extend-celebrate');
+    if (existing) existing.remove();
+
+    const overlay = document.createElement('div');
+    overlay.className = 'extend-celebrate';
+
+    const card = document.createElement('div');
+    card.className = 'extend-celebrate__card';
+
+    const iconWrap = document.createElement('div');
+    iconWrap.className = 'extend-celebrate__icon-wrap';
+    const icon = document.createElement('img');
+    icon.src = 'icon.svg';
+    icon.alt = 'Extended';
+    icon.className = 'extend-celebrate__icon';
+    iconWrap.appendChild(icon);
+
+    const textWrap = document.createElement('div');
+    textWrap.className = 'extend-celebrate__text';
+    const title = document.createElement('div');
+    title.className = 'extend-celebrate__title';
+    title.textContent = 'Expiry extended!';
+    const subtitle = document.createElement('div');
+    subtitle.className = 'extend-celebrate__subtitle';
+    if (expiresAt) {
+        subtitle.textContent = `Now valid until ${new Date(expiresAt).toLocaleDateString()}`;
+    } else {
+        subtitle.textContent = 'Enjoy more time with this share.';
+    }
+    textWrap.appendChild(title);
+    textWrap.appendChild(subtitle);
+
+    const confetti = document.createElement('div');
+    confetti.className = 'extend-celebrate__confetti';
+    for (let i = 0; i < 8; i++) {
+        const piece = document.createElement('span');
+        piece.style.setProperty('--i', i.toString());
+        confetti.appendChild(piece);
+    }
+
+    card.appendChild(iconWrap);
+    card.appendChild(textWrap);
+    card.appendChild(confetti);
+    overlay.appendChild(card);
+    document.body.appendChild(overlay);
+
+    // Play and remove after animation
+    setTimeout(() => overlay.classList.add('is-hiding'), 2200);
+    setTimeout(() => overlay.remove(), 2800);
 }
 
 function createFileViewer(file) {
