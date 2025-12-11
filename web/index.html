@@ -3,11 +3,11 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Gallery</title>
+    <title>Share</title>
     <meta name="description" content="Lets share some photos">
-    <meta property="og:title" content="Gallery">
+    <meta property="og:title" content="Share">
     <meta property="og:description" content="Lets share some photos">
-    <meta name="twitter:title" content="Gallery">
+    <meta name="twitter:title" content="Share">
     <meta name="twitter:description" content="Lets share some photos">
     <link rel="stylesheet" href="style.css">
     <link rel="icon" href="icon.svg" type="image/svg+xml">
@@ -20,8 +20,8 @@
                     <img src="icon.svg" alt="mops" class="header-logo" id="header-logo">
                 </a>
                 <div class="header-title" id="brand-title">
-                    <div class="breadcrumb-row">
-                        <div id="directory-breadcrumb" class="directory-breadcrumb" style="display: none;"></div>
+                    <div class="title-row">
+                        <h1 id="gallery-title" class="gallery-title" style="display: none;">mops</h1>
                         <button id="download-dir-zip-btn" class="mini-action-btn directory-download" aria-label="Download as ZIP" title="Download as ZIP" style="display: none;">
                             <span class="download-icon" aria-hidden="true">
                                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -33,6 +33,9 @@
                             </span>
                             <span class="download-label">Download ZIP</span>
                         </button>
+                    </div>
+                    <div class="breadcrumb-row">
+                        <div id="directory-breadcrumb" class="directory-breadcrumb" style="display: none;"></div>
                     </div>
                     <span id="gallery-meta" class="product-tag">mops</span>
                 </div>
@@ -75,7 +78,7 @@
             <div id="password-modal" class="modal" style="display: none;">
                 <div class="modal-content">
                     <h3>Password Required</h3>
-                    <p>Enter the gallery password to upload or delete files.</p>
+                    <p>Enter the share password to upload or delete files.</p>
                     <input type="password" id="password-input" placeholder="Password">
                     <div class="modal-actions">
                         <button id="password-submit" class="btn-primary">Submit</button>
@@ -143,12 +146,12 @@
             <div id="gallery-grid" class="gallery-grid"></div>
 
             <div id="empty-state" class="empty-state">
-                <img src="icon.svg" alt="Gallery" class="empty-icon">
+                <img src="icon.svg" alt="Share" class="empty-icon">
                 <div class="empty-icon-caption">MOPS</div>
                 <div class="empty-subtitle">Minmalistic Open Photo Share</div>
                 <div class="selector-row">
-                    <div class="public-create selector-card" id="public-create" style="display: none;">
-                        <h3 class="public-create-title">Create Gallery</h3>
+                    <div class="public-create selector-card" id="public-create">
+                        <h3 class="public-create-title">Create Share</h3>
                         <div class="public-create-row">
                             <button id="public-create-refresh" class="btn-icon" title="Refresh">↻</button>
                             <input type="text" id="public-create-name" placeholder="funny-goose-bump" readonly>
@@ -159,9 +162,9 @@
                         </div>
                     </div>
                     <div class="open-card selector-card">
-                        <h3 class="public-create-title">Open Gallery</h3>
+                        <h3 class="public-create-title">Open Share</h3>
                         <div class="public-create-row open-row">
-                            <input type="text" id="gallery-input" placeholder="Enter gallery name" value="">
+                            <input type="text" id="gallery-input" placeholder="Enter share name" value="">
                         </div>
                         <div class="public-create-actions">
                             <button id="load-gallery-btn" class="btn-primary">Open</button>
@@ -169,7 +172,7 @@
                     </div>
                 </div>
                 <div id="recent-visits" class="recent-visits" style="display: none;">
-                    <h3 class="recent-title">Your last visits</h3>
+                    <h3 class="recent-title">Your last shares</h3>
                     <div id="recent-list" class="recent-list"></div>
                 </div>
             </div>

@@ -154,7 +154,7 @@ function setupEventListeners() {
             const viewPassword = newGalleryViewPassword ? newGalleryViewPassword.value.trim() : '';
             
             if (!name) {
-                alert('Gallery name is required');
+                alert('Share name is required');
                 return;
             }
             
@@ -180,11 +180,11 @@ function setupEventListeners() {
                     createModal.style.display = 'none';
                     loadGalleries();
                 } else {
-                    alert('Error: ' + (data.error || 'Failed to create gallery'));
+                    alert('Error: ' + (data.error || 'Failed to create share'));
                 }
             } catch (error) {
-                console.error('Create gallery error:', error);
-                alert('Failed to create gallery');
+                console.error('Create share error:', error);
+                alert('Failed to create share');
             }
         });
     }
@@ -238,7 +238,7 @@ function setupEventListeners() {
             const gallery = passwordGalleryName.value;
             const type = passwordTypeInput ? passwordTypeInput.value : 'edit';
             
-            if (!confirm(`Are you sure you want to remove the ${type} password for gallery "${gallery}"?`)) {
+            if (!confirm(`Are you sure you want to remove the ${type} password for share "${gallery}"?`)) {
                 return;
             }
             
@@ -417,11 +417,11 @@ async function loadGalleries() {
                 loginScreen.style.display = 'flex';
                 adminDashboard.style.display = 'none';
             } else {
-                showError(data.error || 'Failed to load galleries');
+                showError(data.error || 'Failed to load shares');
             }
         }
     } catch (error) {
-        console.error('Error loading galleries:', error);
+        console.error('Error loading shares:', error);
         if (error.message.includes('401')) {
             isLoggedIn = false;
             loginScreen.style.display = 'flex';
@@ -632,7 +632,7 @@ function openPasswordModal(type, galleryName, hasPassword) {
 // Display galleries
 function displayGalleries(galleries) {
     if (galleries.length === 0) {
-        galleriesList.innerHTML = '<p style="color: var(--text-muted);">No galleries yet. Create one to get started.</p>';
+        galleriesList.innerHTML = '<p style="color: var(--text-muted);">No shares yet. Create one to get started.</p>';
         return;
     }
     
@@ -699,7 +699,7 @@ function displayGalleries(galleries) {
         
         const showBtn = document.createElement('button');
         showBtn.className = 'btn-primary gallery-view-btn';
-        showBtn.textContent = 'Show Gallery';
+        showBtn.textContent = 'Show Share';
         showBtn.onclick = () => {
             window.open(`../?gallery=${encodeURIComponent(gallery.name)}`, '_blank');
         };
@@ -718,17 +718,17 @@ function displayGalleries(galleries) {
         renameBtn.className = 'btn-secondary';
         renameBtn.textContent = 'Rename';
         renameBtn.onclick = () => {
-            const newName = prompt('Enter a new gallery name', gallery.name);
+            const newName = prompt('Enter a new share name', gallery.name);
             if (!newName) {
                 return;
             }
             const trimmed = newName.trim();
             if (!trimmed) {
-                alert('Gallery name cannot be empty');
+                alert('Share name cannot be empty');
                 return;
             }
             if (!/^[a-zA-Z0-9_-]+$/.test(trimmed)) {
-                alert('Invalid gallery name. Use letters, numbers, underscore, or hyphen.');
+                alert('Invalid share name. Use letters, numbers, underscore, or hyphen.');
                 return;
             }
             if (trimmed === gallery.name) {

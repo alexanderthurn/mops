@@ -17,7 +17,7 @@ let publicConfig = null;
 let contactEmail = '';
 let nameSuggestions = [];
 let suggestionIndex = 0;
-const DEFAULT_PAGE_TITLE = 'Gallery';
+const DEFAULT_PAGE_TITLE = 'Share';
 const DEFAULT_PAGE_DESC = 'Lets share some photos';
 
 // DOM Elements
@@ -38,6 +38,7 @@ const loginBtn = document.getElementById('login-btn');
 const logoutBtn = document.getElementById('logout-btn');
 const galleryInfo = document.getElementById('gallery-info');
 const galleryTitle = document.getElementById('gallery-title');
+const galleryMeta = document.getElementById('gallery-meta');
 const downloadZipBtn = document.getElementById('download-zip-btn');
 const downloadDirZipBtn = document.getElementById('download-dir-zip-btn');
 const uploadBtn = document.getElementById('upload-btn');
@@ -59,7 +60,6 @@ const uploadFolderBtn = document.getElementById('upload-folder-btn');
 const viewToggleBtn = document.getElementById('view-toggle-btn');
 const directoryList = document.getElementById('directory-list');
 const directoryBreadcrumb = document.getElementById('directory-breadcrumb');
-const galleryMeta = document.getElementById('gallery-meta');
 const galleryGrid = document.getElementById('gallery-grid');
 const emptyState = document.getElementById('empty-state');
 const passwordModal = document.getElementById('password-modal');
@@ -193,6 +193,10 @@ window.addEventListener('DOMContentLoaded', () => {
         if (galleryTitle) {
             galleryTitle.style.display = 'none';
         }
+    if (galleryMeta) {
+        galleryMeta.textContent = 'mops';
+        galleryMeta.style.display = 'inline-flex';
+    }
         if (headerActions) headerActions.style.display = 'none';
         updateGalleryMeta();
     }
@@ -470,17 +474,15 @@ async function loadPublicConfig() {
     try {
         const resp = await fetch('api/index.php?action=public_config');
         const data = await resp.json();
-        if (resp.ok && data.success && data.allowPublicGalleryCreation) {
-            publicConfig = data;
-            contactEmail = data.contactEmail || '';
-            if (publicCreate) publicCreate.style.display = 'block';
-            await fetchNameSuggestions();
-        } else {
-            if (publicCreate) publicCreate.style.display = 'none';
-        }
+        const allowShares = resp.ok && data.success ? !!data.allowPublicGalleryCreation : true;
+        publicConfig = data.success ? data : null;
+        contactEmail = data.contactEmail || '';
+        if (publicCreate && allowShares) publicCreate.style.display = 'block';
+        await fetchNameSuggestions();
     } catch (error) {
         // silent fail; public create stays hidden
         publicConfig = null;
+        if (publicCreate) publicCreate.style.display = 'block';
     }
 }
 
@@ -579,12 +581,15 @@ async function loadGallery(galleryName, dir = '', view = currentView) {
         closeUploadBtn.style.display = keepUploadAreaOpen ? 'block' : 'none';
     }
     if (galleryTitle) {
+        const titleText = currentDir || currentGallery || 'mops';
+        galleryTitle.textContent = titleText;
         galleryTitle.style.display = 'inline-flex';
     }
     if (brandTitle) brandTitle.style.display = 'flex';
     if (headerLeft) headerLeft.style.display = 'flex';
     if (headerLogo) headerLogo.style.display = 'block';
     if (headerActions) headerActions.style.display = 'flex';
+    if (galleryMeta) galleryMeta.style.display = 'none';
     
     // Hide empty state and gallery selector
     if (emptyState) emptyState.style.display = 'none';
@@ -609,7 +614,7 @@ async function loadGallery(galleryName, dir = '', view = currentView) {
             viewerPassword = '';
             sessionStorage.removeItem(`gallery_view_password_${galleryName}`);
             if (headerPasswordInput) headerPasswordInput.value = '';
-            galleryGrid.innerHTML = '<div class="empty-state auth-required"><p>Password required to view this gallery.</p></div>';
+            galleryGrid.innerHTML = '<div class="empty-state auth-required"><p>Password required to view this share.</p></div>';
             if (galleryInfo) galleryInfo.style.display = 'none';
             if (directoryList) directoryList.innerHTML = '';
             if (headerRight) headerRight.style.display = 'flex';
@@ -731,7 +736,7 @@ function displayGallery(files, hasDirectoriesOverride) {
         const canUpload = userCanUpload();
         const msg = canUpload
             ? 'No files yet. Drag your files here or click Upload.'
-            : 'This gallery is empty';
+            : 'This share is empty';
         galleryGrid.innerHTML = `<div class="empty-state"><p>${msg}</p></div>`;
         return;
     }
@@ -1118,7 +1123,13 @@ function updateLimitBanner() {
 
 function updateGalleryMeta() {
     if (!galleryMeta) return;
-    galleryMeta.textContent = 'mops';
+    if (!currentGallery) {
+        galleryMeta.textContent = 'mops';
+        galleryMeta.style.display = 'inline-flex';
+        return;
+    }
+    // hide meta when a gallery is open (breadcrumbs act as subtitle)
+    galleryMeta.style.display = 'none';
 }
 
 function openUploadAreaForDrag() {
@@ -1139,9 +1150,9 @@ function showUploadPermissionNotice() {
     lastUploadPermissionNotice = now;
     const blockedByLimit = currentLimits && Array.isArray(currentLimits.reasons) && currentLimits.reasons.length > 0;
     if (blockedByLimit) {
-        alert('Upload limit reached for this gallery. See the limit banner for details.');
+        alert('Upload limit reached for this share. See the limit banner for details.');
     } else {
-        alert('You need permission to upload files to this gallery.');
+        alert('You need permission to upload files to this share.');
     }
 }
 

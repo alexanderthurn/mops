@@ -27,7 +27,7 @@
         <div id="admin-dashboard" class="admin-dashboard" style="display: none;">
             <header class="admin-header">
                 <div class="header-left">
-                    <a href="../index.html" aria-label="Back to gallery" class="logo-link">
+                    <a href="../index.html" aria-label="Back to share" class="logo-link">
                         <img src="../icon.svg" alt="Admin" class="admin-logo-small">
                     </a>
                     <div class="header-title">
@@ -43,9 +43,9 @@
 
             <main class="admin-main">
                 <section class="admin-section">
-                    <h2>Galleries</h2>
+                    <h2>Shares</h2>
                     <div class="section-actions">
-                        <button id="create-gallery-btn" class="btn-primary">Create Gallery</button>
+                        <button id="create-gallery-btn" class="btn-primary">Create Share</button>
                     </div>
                     <div id="galleries-list" class="galleries-list"></div>
                 </section>
@@ -80,14 +80,14 @@
                         <div class="form-field checkbox-field">
                             <label>
                                 <input type="checkbox" id="allow-public-gallery-creation">
-                                Allow anyone to create galleries
+                                Allow anyone to create shares
                             </label>
                         </div>
-                        <div class="settings-subheading">Defaults for user generated galleries</div>
+                        <div class="settings-subheading">Defaults for user generated shares</div>
                         <div class="settings-grid settings-grid-3 defaults-grid">
                             <div class="form-field">
                                 <label for="public-max-gallery-bytes">
-                                    Max gallery size (bytes)
+                                    Max share size (bytes)
                                     <span class="field-inline" id="public-max-gallery-bytes-mb">≈ 0.00 MB</span>
                                 </label>
                                 <input type="number" id="public-max-gallery-bytes" min="0" step="1" placeholder="52428800">
@@ -108,11 +108,11 @@
                             </div>
                         </div>
 
-                        <div class="settings-subheading">Defaults for admin generated galleries</div>
+                        <div class="settings-subheading">Defaults for admin generated shares</div>
                         <div class="settings-grid settings-grid-3 defaults-grid">
                             <div class="form-field">
                                 <label for="default-max-gallery-bytes">
-                                    Max gallery size (bytes)
+                                    Max share size (bytes)
                                     <span class="field-inline" id="default-max-gallery-bytes-mb">≈ 0.00 MB</span>
                                 </label>
                                 <input type="number" id="default-max-gallery-bytes" min="0" step="1" placeholder="0">
@@ -171,12 +171,12 @@
                     </div>
                 </section>
 
-                <!-- Create Gallery Modal -->
+                <!-- Create Share Modal -->
                 <div id="create-modal" class="modal" style="display: none;">
                     <div class="modal-content">
-                        <h3>Create New Gallery</h3>
+                        <h3>Create New Share</h3>
                         <form id="create-gallery-form">
-                            <input type="text" id="new-gallery-name" placeholder="Gallery name" required>
+                            <input type="text" id="new-gallery-name" placeholder="Share name" required>
                             <input type="password" id="new-gallery-password" placeholder="Editor password (optional)">
                             <input type="password" id="new-gallery-view-password" placeholder="Viewer password (optional)">
                             <div class="modal-actions">
