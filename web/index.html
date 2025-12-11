@@ -59,6 +59,22 @@
                 <input type="file" id="dir-input" webkitdirectory directory style="display: none;">
             </div>
 
+            <div id="limit-banner" class="limit-banner" style="display: none;">
+                <div id="limit-banner-text" class="limit-banner-text"></div>
+                <div id="limit-banner-actions" class="limit-banner-actions"></div>
+            </div>
+
+            <div id="limit-modal" class="modal" style="display: none;">
+                <div class="modal-content">
+                    <h3>Upgrade or Contact</h3>
+                    <p id="limit-modal-desc" class="limit-modal-desc">Choose how to proceed.</p>
+                    <div id="limit-modal-actions" class="limit-modal-actions"></div>
+                    <div class="modal-actions">
+                        <button id="limit-modal-close" class="btn-secondary">Close</button>
+                    </div>
+                </div>
+            </div>
+
             <div id="password-modal" class="modal" style="display: none;">
                 <div class="modal-content">
                     <h3>Password Required</h3>
@@ -144,11 +160,31 @@
 
             <div id="empty-state" class="empty-state">
                 <img src="icon.svg" alt="Gallery" class="empty-icon">
-                <p class="empty-title">Open a gallery to explore.</p>
-                <p class="empty-subtitle">Drop in the name and jump right in.</p>
-                <div class="gallery-selector" id="gallery-selector">
-                    <input type="text" id="gallery-input" placeholder="Enter gallery name" value="">
-                    <button id="load-gallery-btn" class="btn-primary">Jump</button>
+                <div class="selector-row">
+                    <div class="public-create selector-card" id="public-create" style="display: none;">
+                        <h3 class="public-create-title">Create Gallery</h3>
+                        <div class="public-create-row">
+                            <button id="public-create-refresh" class="btn-icon" title="Refresh">↻</button>
+                            <input type="text" id="public-create-name" placeholder="funny-goose-bump" readonly>
+                        </div>
+                        <div class="public-create-actions">
+                            <button id="public-create-submit" class="btn-primary">Create</button>
+                            <span id="public-create-status" class="public-create-status"></span>
+                        </div>
+                    </div>
+                    <div class="open-card selector-card">
+                        <h3 class="public-create-title">Open Gallery</h3>
+                        <div class="public-create-row open-row">
+                            <input type="text" id="gallery-input" placeholder="Enter gallery name" value="">
+                        </div>
+                        <div class="public-create-actions">
+                            <button id="load-gallery-btn" class="btn-primary">Open</button>
+                        </div>
+                    </div>
+                </div>
+                <div id="recent-visits" class="recent-visits" style="display: none;">
+                    <h3 class="recent-title">Your last visits</h3>
+                    <div id="recent-list" class="recent-list"></div>
                 </div>
             </div>
         </main>

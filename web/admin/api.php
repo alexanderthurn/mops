@@ -64,6 +64,14 @@ switch ($action) {
     case 'save_settings':
         handleSaveSettings();
         break;
+
+    case 'get_gallery_settings':
+        handleGetGallerySettings();
+        break;
+
+    case 'save_gallery_settings':
+        handleSaveGallerySettings();
+        break;
     
     default:
         http_response_code(400);
@@ -141,40 +149,19 @@ function handleListGalleries() {
         if (is_dir($galleryPath)) {
             $hasPassword = file_exists($galleryPath . '/.password');
             $hasViewPassword = file_exists($galleryPath . '/.viewpassword');
-            
-            // Count files (excluding thumbnails and password files)
-            $fileCount = 0;
-            $iterator = new RecursiveIteratorIterator(
-                new RecursiveDirectoryIterator($galleryPath, RecursiveDirectoryIterator::SKIP_DOTS)
-            );
-            
-            foreach ($iterator as $file) {
-                if ($file->isFile()) {
-                    $filename = $file->getFilename();
-                    
-                    // Skip hidden files and password files
-                    if ($filename[0] === '.' || $filename === '.password' || $filename === '.viewpassword') {
-                        continue;
-                    }
-                    
-                    // Skip thumbnail files
-                    if (strpos($filename, '_thumb.') !== false) {
-                        continue;
-                    }
-                    
-                    // Only count supported files
-                    if (isSupportedFile($filename)) {
-                        $fileCount++;
-                    }
-                }
-            }
+            $stats = getGalleryStats($dir);
+            $settings = loadGallerySettings($dir);
+            $limits = evaluateGalleryUploadAllowance($dir, $settings, 0, 0);
             
             $galleries[] = [
                 'name' => $dir,
                 'hasPassword' => $hasPassword,
                 'hasEditPassword' => $hasPassword,
                 'hasViewPassword' => $hasViewPassword,
-                'fileCount' => $fileCount
+                'fileCount' => $stats['fileCount'],
+                'totalBytes' => $stats['totalBytes'],
+                'settings' => $settings,
+                'limits' => $limits
             ];
         }
     }
@@ -227,11 +214,15 @@ function handleCreateGallery() {
     if (!empty($viewPassword)) {
         setGalleryViewPassword($sanitized, $viewPassword);
     }
+
+    // Create initial gallery settings with admin defaults
+    $settings = loadGallerySettings($sanitized, 'admin');
     
     echo json_encode([
         'success' => true,
         'message' => 'Gallery created successfully',
-        'gallery' => $sanitized
+        'gallery' => $sanitized,
+        'settings' => $settings
     ]);
 }
 
@@ -503,11 +494,35 @@ function handleSaveSettings() {
     $maxImageWidth = isset($_POST['max_image_width']) ? (int) $_POST['max_image_width'] : $defaults['maxImageWidth'];
     $maxImageFileSize = isset($_POST['max_image_file_size']) ? (int) $_POST['max_image_file_size'] : $defaults['maxImageFileSize'];
     $maxFileSize = isset($_POST['max_file_size']) ? (int) $_POST['max_file_size'] : $defaults['maxFileSize'];
+    $allowPublic = isset($_POST['allow_public_gallery_creation'])
+        ? filter_var($_POST['allow_public_gallery_creation'], FILTER_VALIDATE_BOOLEAN, FILTER_NULL_ON_FAILURE) ?? false
+        : $defaults['allowPublicGalleryCreation'];
+    $publicDefaultViewerUploads = isset($_POST['public_default_viewer_uploads_enabled'])
+        ? filter_var($_POST['public_default_viewer_uploads_enabled'], FILTER_VALIDATE_BOOLEAN, FILTER_NULL_ON_FAILURE) ?? false
+        : $defaults['publicDefaultViewerUploadsEnabled'];
+    $defaultViewerUploads = isset($_POST['default_viewer_uploads_enabled'])
+        ? filter_var($_POST['default_viewer_uploads_enabled'], FILTER_VALIDATE_BOOLEAN, FILTER_NULL_ON_FAILURE) ?? false
+        : $defaults['defaultViewerUploadsEnabled'];
+    $publicDefaultMaxBytes = isset($_POST['public_default_max_gallery_bytes']) ? (int) $_POST['public_default_max_gallery_bytes'] : $defaults['publicDefaultMaxGalleryBytes'];
+    $publicDefaultMaxPhotos = isset($_POST['public_default_max_photos']) ? (int) $_POST['public_default_max_photos'] : $defaults['publicDefaultMaxPhotos'];
+    $publicDefaultLifetimeDays = isset($_POST['public_default_lifetime_days']) ? (int) $_POST['public_default_lifetime_days'] : $defaults['publicDefaultLifetimeDays'];
+    $defaultMaxBytes = isset($_POST['default_max_gallery_bytes']) ? (int) $_POST['default_max_gallery_bytes'] : $defaults['defaultMaxGalleryBytes'];
+    $defaultMaxPhotos = isset($_POST['default_max_photos']) ? (int) $_POST['default_max_photos'] : $defaults['defaultMaxPhotos'];
+    $defaultLifetimeDays = isset($_POST['default_lifetime_days']) ? (int) $_POST['default_lifetime_days'] : $defaults['defaultLifetimeDays'];
 
     $settings = [
         'maxImageWidth' => max(0, $maxImageWidth),
         'maxImageFileSize' => max(0, $maxImageFileSize),
-        'maxFileSize' => max(0, $maxFileSize)
+        'maxFileSize' => max(0, $maxFileSize),
+        'allowPublicGalleryCreation' => $allowPublic ? true : false,
+        'publicDefaultViewerUploadsEnabled' => $publicDefaultViewerUploads ? true : false,
+        'publicDefaultMaxGalleryBytes' => max(0, $publicDefaultMaxBytes),
+        'publicDefaultMaxPhotos' => max(0, $publicDefaultMaxPhotos),
+        'publicDefaultLifetimeDays' => max(0, $publicDefaultLifetimeDays),
+        'defaultViewerUploadsEnabled' => $defaultViewerUploads ? true : false,
+        'defaultMaxGalleryBytes' => max(0, $defaultMaxBytes),
+        'defaultMaxPhotos' => max(0, $defaultMaxPhotos),
+        'defaultLifetimeDays' => max(0, $defaultLifetimeDays),
     ];
 
     $path = SETTINGS_PATH;
@@ -520,5 +535,84 @@ function handleSaveSettings() {
     }
 
     echo json_encode(['success' => true, 'settings' => $settings]);
+}
+
+function handleGetGallerySettings() {
+    requireAdmin();
+
+    $gallery = isset($_GET['gallery']) ? $_GET['gallery'] : '';
+    if (empty($gallery)) {
+        http_response_code(400);
+        echo json_encode(['error' => 'Gallery name required']);
+        return;
+    }
+
+    $galleryPath = getGalleryPath($gallery);
+    if (!is_dir($galleryPath)) {
+        http_response_code(404);
+        echo json_encode(['error' => 'Gallery not found']);
+        return;
+    }
+
+    $settings = loadGallerySettings($gallery);
+    $limits = evaluateGalleryUploadAllowance($gallery, $settings, 0, 0);
+
+    echo json_encode([
+        'success' => true,
+        'settings' => $settings,
+        'limits' => $limits
+    ]);
+}
+
+function handleSaveGallerySettings() {
+    requireAdmin();
+
+    $gallery = isset($_POST['gallery']) ? $_POST['gallery'] : '';
+    if (empty($gallery)) {
+        http_response_code(400);
+        echo json_encode(['error' => 'Gallery name required']);
+        return;
+    }
+
+    $galleryPath = getGalleryPath($gallery);
+    if (!is_dir($galleryPath)) {
+        http_response_code(404);
+        echo json_encode(['error' => 'Gallery not found']);
+        return;
+    }
+
+    $current = loadGallerySettings($gallery);
+    $updated = [
+        'viewerUploadsEnabled' => isset($_POST['viewer_uploads_enabled'])
+            ? filter_var($_POST['viewer_uploads_enabled'], FILTER_VALIDATE_BOOLEAN, FILTER_NULL_ON_FAILURE) ?? false
+            : $current['viewerUploadsEnabled'],
+        'maxGalleryBytes' => isset($_POST['max_gallery_bytes'])
+            ? max(0, (int) $_POST['max_gallery_bytes'])
+            : $current['maxGalleryBytes'],
+        'maxPhotos' => isset($_POST['max_photos'])
+            ? max(0, (int) $_POST['max_photos'])
+            : $current['maxPhotos'],
+        'lifetimeDays' => isset($_POST['lifetime_days'])
+            ? max(0, (int) $_POST['lifetime_days'])
+            : $current['lifetimeDays'],
+        'limitActions' => $current['limitActions'],
+        'createdAt' => $current['createdAt']
+    ];
+
+    $normalized = normalizeGallerySettings($updated, 'admin');
+
+    if (!saveGallerySettings($gallery, $normalized)) {
+        http_response_code(500);
+        echo json_encode(['error' => 'Failed to save gallery settings']);
+        return;
+    }
+
+    $limits = evaluateGalleryUploadAllowance($gallery, $normalized, 0, 0);
+
+    echo json_encode([
+        'success' => true,
+        'settings' => $normalized,
+        'limits' => $limits
+    ]);
 }
 

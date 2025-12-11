@@ -47,6 +47,15 @@ const maxFileSizeInput = document.getElementById('max-file-size');
 const settingsStatus = document.getElementById('settings-status');
 const maxImageFileSizeMb = document.getElementById('max-image-file-size-mb');
 const maxFileSizeMb = document.getElementById('max-file-size-mb');
+const allowPublicGalleryCreationInput = document.getElementById('allow-public-gallery-creation');
+const publicMaxGalleryBytesInput = document.getElementById('public-max-gallery-bytes');
+const publicMaxPhotosInput = document.getElementById('public-max-photos');
+const publicLifetimeDaysInput = document.getElementById('public-lifetime-days');
+const publicViewerUploadsInput = document.getElementById('public-viewer-uploads');
+const defaultMaxGalleryBytesInput = document.getElementById('default-max-gallery-bytes');
+const defaultMaxPhotosInput = document.getElementById('default-max-photos');
+const defaultLifetimeDaysInput = document.getElementById('default-lifetime-days');
+const defaultViewerUploadsInput = document.getElementById('default-viewer-uploads');
 
 // Initialize
 window.addEventListener('DOMContentLoaded', () => {
@@ -425,10 +434,32 @@ async function loadSettings() {
         const response = await fetch('api.php?action=get_settings');
         const data = await response.json();
         if (response.ok && data.success && data.settings) {
-            const { maxImageWidth, maxImageFileSize, maxFileSize } = data.settings;
+            const {
+                maxImageWidth,
+                maxImageFileSize,
+                maxFileSize,
+                allowPublicGalleryCreation,
+                publicDefaultViewerUploadsEnabled,
+                publicDefaultMaxGalleryBytes,
+                publicDefaultMaxPhotos,
+                publicDefaultLifetimeDays,
+                defaultViewerUploadsEnabled,
+                defaultMaxGalleryBytes,
+                defaultMaxPhotos,
+                defaultLifetimeDays
+            } = data.settings;
             if (maxImageWidthInput) maxImageWidthInput.value = maxImageWidth ?? '';
             if (maxImageFileSizeInput) maxImageFileSizeInput.value = maxImageFileSize ?? '';
             if (maxFileSizeInput) maxFileSizeInput.value = maxFileSize ?? '';
+            if (allowPublicGalleryCreationInput) allowPublicGalleryCreationInput.checked = !!allowPublicGalleryCreation;
+            if (publicMaxGalleryBytesInput) publicMaxGalleryBytesInput.value = publicDefaultMaxGalleryBytes ?? '';
+            if (publicMaxPhotosInput) publicMaxPhotosInput.value = publicDefaultMaxPhotos ?? '';
+            if (publicLifetimeDaysInput) publicLifetimeDaysInput.value = publicDefaultLifetimeDays ?? '';
+            if (publicViewerUploadsInput) publicViewerUploadsInput.checked = !!publicDefaultViewerUploadsEnabled;
+            if (defaultMaxGalleryBytesInput) defaultMaxGalleryBytesInput.value = defaultMaxGalleryBytes ?? '';
+            if (defaultMaxPhotosInput) defaultMaxPhotosInput.value = defaultMaxPhotos ?? '';
+            if (defaultLifetimeDaysInput) defaultLifetimeDaysInput.value = defaultLifetimeDays ?? '';
+            if (defaultViewerUploadsInput) defaultViewerUploadsInput.checked = !!defaultViewerUploadsEnabled;
             updateSizeDisplay(maxImageFileSizeInput, maxImageFileSizeMb);
             updateSizeDisplay(maxFileSizeInput, maxFileSizeMb);
             setStatus(settingsStatus, 'Loaded');
@@ -450,6 +481,15 @@ async function saveSettings() {
         if (maxImageWidthInput) formData.append('max_image_width', maxImageWidthInput.value || '0');
         if (maxImageFileSizeInput) formData.append('max_image_file_size', maxImageFileSizeInput.value || '0');
         if (maxFileSizeInput) formData.append('max_file_size', maxFileSizeInput.value || '0');
+        if (allowPublicGalleryCreationInput) formData.append('allow_public_gallery_creation', allowPublicGalleryCreationInput.checked ? '1' : '0');
+        if (publicMaxGalleryBytesInput) formData.append('public_default_max_gallery_bytes', publicMaxGalleryBytesInput.value || '0');
+        if (publicMaxPhotosInput) formData.append('public_default_max_photos', publicMaxPhotosInput.value || '0');
+        if (publicLifetimeDaysInput) formData.append('public_default_lifetime_days', publicLifetimeDaysInput.value || '0');
+        if (publicViewerUploadsInput) formData.append('public_default_viewer_uploads_enabled', publicViewerUploadsInput.checked ? '1' : '0');
+        if (defaultMaxGalleryBytesInput) formData.append('default_max_gallery_bytes', defaultMaxGalleryBytesInput.value || '0');
+        if (defaultMaxPhotosInput) formData.append('default_max_photos', defaultMaxPhotosInput.value || '0');
+        if (defaultLifetimeDaysInput) formData.append('default_lifetime_days', defaultLifetimeDaysInput.value || '0');
+        if (defaultViewerUploadsInput) formData.append('default_viewer_uploads_enabled', defaultViewerUploadsInput.checked ? '1' : '0');
 
         const response = await fetch('api.php?action=save_settings', {
             method: 'POST',
@@ -586,11 +626,8 @@ function displayGalleries(galleries) {
         const card = document.createElement('div');
         card.className = 'gallery-card';
         
-        const info = document.createElement('div');
-        info.className = 'gallery-info';
-        const hasEditPassword = gallery.hasEditPassword ?? gallery.hasPassword;
-        const hasViewPassword = gallery.hasViewPassword ?? false;
-        
+        const header = document.createElement('div');
+        header.className = 'gallery-header-row';
         const name = document.createElement('div');
         name.className = 'gallery-name';
         const nameText = document.createElement('span');
@@ -599,6 +636,22 @@ function displayGalleries(galleries) {
         nameText.onclick = () => {
             window.open(`../?gallery=${encodeURIComponent(gallery.name)}`, '_blank');
         };
+        name.appendChild(nameText);
+        header.appendChild(name);
+
+        const toggleBtn = document.createElement('button');
+        toggleBtn.className = 'btn-secondary btn-ghost gallery-toggle-btn';
+        toggleBtn.textContent = 'Show details';
+        header.appendChild(toggleBtn);
+
+        const detail = document.createElement('div');
+        detail.className = 'gallery-detail';
+        detail.style.display = 'none';
+
+        const info = document.createElement('div');
+        info.className = 'gallery-info';
+        const hasEditPassword = gallery.hasEditPassword ?? gallery.hasPassword;
+        const hasViewPassword = gallery.hasViewPassword ?? false;
         
         const badges = document.createElement('div');
         badges.className = 'badge-row';
@@ -616,14 +669,12 @@ function displayGalleries(galleries) {
         editBadge.textContent = editText;
         badges.appendChild(viewBadge);
         badges.appendChild(editBadge);
-        name.appendChild(nameText);
-        name.appendChild(badges);
         
         const meta = document.createElement('div');
         meta.className = 'gallery-meta';
         meta.innerHTML = `<span>${gallery.fileCount} file${gallery.fileCount !== 1 ? 's' : ''}</span>`;
         
-        info.appendChild(name);
+        info.appendChild(badges);
         info.appendChild(meta);
         
         const actions = document.createElement('div');
@@ -690,10 +741,170 @@ function displayGalleries(galleries) {
         actions.appendChild(renameBtn);
         actions.appendChild(deleteBtn);
         
-        card.appendChild(info);
-        card.appendChild(actions);
+        detail.appendChild(info);
+        detail.appendChild(actions);
+        detail.appendChild(renderGallerySettingsBlock(gallery));
+
+        toggleBtn.onclick = () => {
+            const isOpen = detail.style.display === 'block';
+            detail.style.display = isOpen ? 'none' : 'block';
+            toggleBtn.textContent = isOpen ? 'Show details' : 'Hide details';
+        };
+
+        card.appendChild(header);
+        card.appendChild(detail);
         galleriesList.appendChild(card);
     });
+}
+
+function renderGallerySettingsBlock(gallery) {
+    const wrapper = document.createElement('div');
+    wrapper.className = 'gallery-settings-block';
+    const settings = gallery.settings || {};
+    const limits = gallery.limits || {};
+    const stats = limits.stats || {};
+
+    const title = document.createElement('div');
+    title.className = 'gallery-settings-title';
+    title.textContent = 'Gallery limits';
+    wrapper.appendChild(title);
+
+    const grid = document.createElement('div');
+    grid.className = 'gallery-settings-grid';
+
+    const viewerField = document.createElement('label');
+    viewerField.className = 'gallery-settings-field checkbox';
+    const viewerInput = document.createElement('input');
+    viewerInput.type = 'checkbox';
+    viewerInput.checked = !!settings.viewerUploadsEnabled;
+    viewerField.appendChild(viewerInput);
+    viewerField.appendChild(document.createTextNode('Allow viewers to upload'));
+    grid.appendChild(viewerField);
+
+    const maxBytesField = document.createElement('div');
+    maxBytesField.className = 'gallery-settings-field form-field';
+    const maxBytesLabel = document.createElement('label');
+    maxBytesLabel.textContent = 'Max size (bytes, 0 = unlimited)';
+    const maxBytesInput = document.createElement('input');
+    maxBytesInput.type = 'number';
+    maxBytesInput.min = '0';
+    maxBytesInput.step = '1';
+    maxBytesInput.value = settings.maxGalleryBytes ?? 0;
+    maxBytesField.appendChild(maxBytesLabel);
+    maxBytesField.appendChild(maxBytesInput);
+    grid.appendChild(maxBytesField);
+
+    const maxPhotosField = document.createElement('div');
+    maxPhotosField.className = 'gallery-settings-field form-field';
+    const maxPhotosLabel = document.createElement('label');
+    maxPhotosLabel.textContent = 'Max photos (0 = unlimited)';
+    const maxPhotosInput = document.createElement('input');
+    maxPhotosInput.type = 'number';
+    maxPhotosInput.min = '0';
+    maxPhotosInput.step = '1';
+    maxPhotosInput.value = settings.maxPhotos ?? 0;
+    maxPhotosField.appendChild(maxPhotosLabel);
+    maxPhotosField.appendChild(maxPhotosInput);
+    grid.appendChild(maxPhotosField);
+
+    const lifetimeField = document.createElement('div');
+    lifetimeField.className = 'gallery-settings-field form-field';
+    const lifetimeLabel = document.createElement('label');
+    lifetimeLabel.textContent = 'Lifetime (days, 0 = unlimited)';
+    const lifetimeInput = document.createElement('input');
+    lifetimeInput.type = 'number';
+    lifetimeInput.min = '0';
+    lifetimeInput.step = '1';
+    lifetimeInput.value = settings.lifetimeDays ?? 0;
+    lifetimeField.appendChild(lifetimeLabel);
+    lifetimeField.appendChild(lifetimeInput);
+    grid.appendChild(lifetimeField);
+
+    wrapper.appendChild(grid);
+
+    const meta = document.createElement('div');
+    meta.className = 'gallery-settings-meta';
+    const maxBytesText = settings.maxGalleryBytes ? `${formatBytesShort(stats.totalBytes || 0)} / ${formatBytesShort(settings.maxGalleryBytes)}` : `${formatBytesShort(stats.totalBytes || 0)} / ∞`;
+    const maxPhotosText = settings.maxPhotos ? `${stats.fileCount || 0} / ${settings.maxPhotos}` : `${stats.fileCount || 0} / ∞`;
+    const expiresText = limits.expiresAt ? new Date(limits.expiresAt).toLocaleDateString() : 'No expiry';
+    meta.textContent = `Size: ${maxBytesText} · Photos: ${maxPhotosText} · Deletes on: ${expiresText}`;
+    wrapper.appendChild(meta);
+
+    const status = document.createElement('div');
+    status.className = 'gallery-settings-status';
+    wrapper.appendChild(status);
+
+    const actions = document.createElement('div');
+    actions.className = 'gallery-settings-actions';
+    const saveBtn = document.createElement('button');
+    saveBtn.className = 'btn-secondary';
+    saveBtn.textContent = 'Save limits';
+    saveBtn.onclick = async () => {
+        saveBtn.disabled = true;
+        status.textContent = 'Saving...';
+        const payload = {
+            viewer_uploads_enabled: viewerInput.checked ? '1' : '0',
+            max_gallery_bytes: maxBytesInput.value || '0',
+            max_photos: maxPhotosInput.value || '0',
+            lifetime_days: lifetimeInput.value || '0'
+        };
+        const ok = await saveGallerySettingsApi(gallery.name, payload, status);
+        saveBtn.disabled = false;
+        if (ok) {
+            loadGalleries();
+        }
+    };
+    actions.appendChild(saveBtn);
+    wrapper.appendChild(actions);
+
+    return wrapper;
+}
+
+async function saveGallerySettingsApi(galleryName, payload, statusEl) {
+    try {
+        const formData = new FormData();
+        formData.append('action', 'save_gallery_settings');
+        formData.append('gallery', galleryName);
+        Object.entries(payload).forEach(([key, val]) => formData.append(key, val));
+
+        const response = await fetch('api.php?action=save_gallery_settings', {
+            method: 'POST',
+            body: formData
+        });
+        const data = await response.json();
+        if (response.ok && data.success) {
+            if (statusEl) {
+                statusEl.textContent = 'Saved';
+                statusEl.style.color = 'var(--text-secondary)';
+                setTimeout(() => statusEl.textContent = '', 2000);
+            }
+            return true;
+        }
+        if (statusEl) {
+            statusEl.textContent = data.error || 'Save failed';
+            statusEl.style.color = 'var(--error)';
+        }
+        return false;
+    } catch (error) {
+        console.error('Save gallery settings error:', error);
+        if (statusEl) {
+            statusEl.textContent = 'Save failed';
+            statusEl.style.color = 'var(--error)';
+        }
+        return false;
+    }
+}
+
+function formatBytesShort(bytes) {
+    if (!bytes) return '0 B';
+    const units = ['B', 'KB', 'MB', 'GB', 'TB'];
+    let idx = 0;
+    let value = bytes;
+    while (value >= 1024 && idx < units.length - 1) {
+        value /= 1024;
+        idx++;
+    }
+    return `${value.toFixed(value >= 10 ? 0 : 1)} ${units[idx]}`;
 }
 
 // Delete gallery

@@ -11,6 +11,11 @@ let galleryHasEditPassword = false;
 let galleryHasViewPassword = false;
 let hasViewAccess = false;
 let isLoggedIn = false; // editor access
+let currentSettings = null;
+let currentLimits = null;
+let publicConfig = null;
+let nameSuggestions = [];
+let suggestionIndex = 0;
 const DEFAULT_PAGE_TITLE = 'Gallery';
 const DEFAULT_PAGE_DESC = 'Lets share some photos';
 
@@ -68,10 +73,26 @@ const lightboxNext = document.getElementById('lightbox-next');
 const lightboxLeftHotspot = document.getElementById('lightbox-left-hotspot');
 const lightboxCenterHotspot = document.getElementById('lightbox-center-hotspot');
 const lightboxRightHotspot = document.getElementById('lightbox-right-hotspot');
+const limitBanner = document.getElementById('limit-banner');
+const limitBannerText = document.getElementById('limit-banner-text');
+const limitBannerActions = document.getElementById('limit-banner-actions');
+const limitModal = document.getElementById('limit-modal');
+const limitModalActions = document.getElementById('limit-modal-actions');
+const limitModalClose = document.getElementById('limit-modal-close');
+const limitModalDesc = document.getElementById('limit-modal-desc');
+const publicCreate = document.getElementById('public-create');
+const publicCreateName = document.getElementById('public-create-name');
+const publicCreateRefresh = document.getElementById('public-create-refresh');
+const publicCreateSubmit = document.getElementById('public-create-submit');
+const publicCreateStatus = document.getElementById('public-create-status');
+const recentVisits = document.getElementById('recent-visits');
+const recentList = document.getElementById('recent-list');
 
 // Initialize
 window.addEventListener('DOMContentLoaded', () => {
     setPageMetadata();
+    loadPublicConfig();
+    renderRecentGalleries();
     // Check URL parameter
     const urlParams = new URLSearchParams(window.location.search);
     const galleryParam = urlParams.get('gallery');
@@ -120,6 +141,26 @@ window.addEventListener('DOMContentLoaded', () => {
         loginToggle.addEventListener('click', () => {
             const isOpen = loginWrapper.classList.toggle('is-open');
             loginToggle.setAttribute('aria-expanded', isOpen ? 'true' : 'false');
+        });
+    }
+
+    if (publicCreateRefresh) {
+        publicCreateRefresh.addEventListener('click', (e) => {
+            e.preventDefault();
+            rotateSuggestion();
+        });
+    }
+
+    if (publicCreateSubmit) {
+        publicCreateSubmit.addEventListener('click', async (e) => {
+            e.preventDefault();
+            await createPublicGallery();
+        });
+    }
+
+    if (limitModalClose) {
+        limitModalClose.addEventListener('click', () => {
+            hideLimitDialog();
         });
     }
     
@@ -234,12 +275,68 @@ function logout() {
     viewerPassword = '';
     isLoggedIn = false;
     hasViewAccess = !galleryHasViewPassword;
+    currentSettings = null;
+    currentLimits = null;
+    updateLimitBanner();
     if (currentGallery) {
         sessionStorage.removeItem(`gallery_password_${currentGallery}`);
         sessionStorage.removeItem(`gallery_view_password_${currentGallery}`);
     }
     if (headerPasswordInput) headerPasswordInput.value = '';
     updateLoginUI();
+}
+
+function getRecentGalleries() {
+    try {
+        const raw = localStorage.getItem('recent_galleries');
+        if (!raw) return [];
+        const parsed = JSON.parse(raw);
+        return Array.isArray(parsed) ? parsed : [];
+    } catch (e) {
+        return [];
+    }
+}
+
+function saveRecentGalleries(list) {
+    try {
+        localStorage.setItem('recent_galleries', JSON.stringify(list));
+    } catch (e) {
+        // ignore
+    }
+}
+
+function addVisitedGallery(name) {
+    const normalized = (name || '').trim();
+    if (!normalized) return;
+    const list = getRecentGalleries().filter(g => g.toLowerCase() !== normalized.toLowerCase());
+    list.unshift(normalized);
+    const trimmed = list.slice(0, 5);
+    saveRecentGalleries(trimmed);
+}
+
+function renderRecentGalleries() {
+    if (!recentVisits || !recentList) return;
+    const list = getRecentGalleries();
+    if (!list.length) {
+        recentVisits.style.display = 'none';
+        recentList.innerHTML = '';
+        return;
+    }
+    recentVisits.style.display = 'block';
+    recentList.innerHTML = '';
+    list.forEach((name) => {
+        const pill = document.createElement('button');
+        pill.className = 'recent-pill';
+        pill.textContent = name;
+        pill.onclick = () => {
+            if (galleryInput) galleryInput.value = name;
+            const params = new URLSearchParams();
+            params.set('gallery', name);
+            window.history.pushState({}, '', `?${params.toString()}`);
+            loadGallery(name);
+        };
+        recentList.appendChild(pill);
+    });
 }
 
 // Update login UI
@@ -331,13 +428,14 @@ function updateLoginUI() {
     
     // Show/hide upload button and delete icons based on access
     if (uploadBtn) {
-        const canUpload = hasViewAccess && (!isEditProtected || isLoggedIn);
+        const canUpload = userCanUpload();
         uploadBtn.style.display = canUpload ? 'block' : 'none';
     }
-    if (uploadArea && !isLoggedIn) {
+    const canUploadNow = userCanUpload();
+    if (uploadArea && !canUploadNow) {
         uploadArea.style.display = 'none';
     }
-    if (closeUploadBtn && !isLoggedIn) {
+    if (closeUploadBtn && !canUploadNow) {
         closeUploadBtn.style.display = 'none';
     }
     
@@ -369,6 +467,104 @@ function setPageMetadata(galleryName, dir = '') {
     setMetaTag('meta[property="og:description"]', DEFAULT_PAGE_DESC);
     setMetaTag('meta[name="twitter:title"]', title);
     setMetaTag('meta[name="twitter:description"]', DEFAULT_PAGE_DESC);
+}
+
+async function loadPublicConfig() {
+    try {
+        const resp = await fetch('api/index.php?action=public_config');
+        const data = await resp.json();
+        if (resp.ok && data.success && data.allowPublicGalleryCreation) {
+            publicConfig = data;
+            if (publicCreate) publicCreate.style.display = 'block';
+            await fetchNameSuggestions();
+        } else {
+            if (publicCreate) publicCreate.style.display = 'none';
+        }
+    } catch (error) {
+        // silent fail; public create stays hidden
+        publicConfig = null;
+    }
+}
+
+async function fetchNameSuggestions() {
+    try {
+        const resp = await fetch('api/index.php?action=suggest_gallery_names');
+        const data = await resp.json();
+        if (resp.ok && data.success && Array.isArray(data.suggestions) && data.suggestions.length) {
+            nameSuggestions = data.suggestions;
+            suggestionIndex = 0;
+            updatePublicCreateName();
+        }
+    } catch (error) {
+        console.error('Failed to fetch name suggestions', error);
+    }
+}
+
+function rotateSuggestion() {
+    if (!nameSuggestions || nameSuggestions.length === 0) {
+        fetchNameSuggestions();
+        return;
+    }
+    suggestionIndex = (suggestionIndex + 1) % nameSuggestions.length;
+    updatePublicCreateName();
+}
+
+function updatePublicCreateName() {
+    if (!publicCreateName) return;
+    if (!nameSuggestions || nameSuggestions.length === 0) {
+        publicCreateName.value = '';
+        return;
+    }
+    const next = nameSuggestions[suggestionIndex] || nameSuggestions[0];
+    publicCreateName.value = next;
+    publicCreateName.classList.add('spin-text');
+    setTimeout(() => publicCreateName.classList.remove('spin-text'), 400);
+}
+
+async function createPublicGallery() {
+    if (!publicConfig || !publicConfig.allowPublicGalleryCreation) return;
+    const name = (publicCreateName?.value || '').trim();
+    if (!name) {
+        await fetchNameSuggestions();
+        if (publicCreateName && publicCreateName.value) {
+            return createPublicGallery();
+        }
+        return;
+    }
+    if (publicCreateStatus) {
+        publicCreateStatus.textContent = 'Creating...';
+        publicCreateStatus.style.color = 'var(--text-secondary)';
+    }
+    try {
+        const formData = new FormData();
+        formData.append('action', 'create_gallery_public');
+        formData.append('name', name);
+        const resp = await fetch('api/index.php?action=create_gallery_public', {
+            method: 'POST',
+            body: formData
+        });
+        const data = await resp.json();
+        if (resp.ok && data.success) {
+            if (publicCreateStatus) {
+                publicCreateStatus.textContent = 'Created!';
+                publicCreateStatus.style.color = 'var(--text-secondary)';
+            }
+            if (galleryInput) galleryInput.value = name;
+            window.history.pushState({}, '', `?gallery=${encodeURIComponent(name)}`);
+            await loadGallery(name);
+        } else {
+            if (publicCreateStatus) {
+                publicCreateStatus.textContent = data.error || 'Failed to create';
+                publicCreateStatus.style.color = 'var(--error)';
+            }
+        }
+    } catch (error) {
+        console.error('Create public gallery failed', error);
+        if (publicCreateStatus) {
+            publicCreateStatus.textContent = 'Failed to create';
+            publicCreateStatus.style.color = 'var(--error)';
+        }
+    }
 }
 
 // Load gallery
@@ -408,6 +604,9 @@ async function loadGallery(galleryName, dir = '', view = currentView) {
             galleryHasEditPassword = false;
             hasViewAccess = false;
             isLoggedIn = false;
+            currentSettings = null;
+            currentLimits = null;
+            updateLimitBanner();
             galleryPassword = '';
             viewerPassword = '';
             sessionStorage.removeItem(`gallery_view_password_${galleryName}`);
@@ -429,10 +628,15 @@ async function loadGallery(galleryName, dir = '', view = currentView) {
             galleryHasPassword = galleryHasEditPassword;
             galleryHasViewPassword = data.hasViewPassword || false;
             hasViewAccess = true;
+            currentSettings = data.settings || null;
+            currentLimits = data.limits || null;
+            addVisitedGallery(galleryName);
+            renderRecentGalleries();
             if (!galleryHasViewPassword) {
                 viewerPassword = '';
                 sessionStorage.removeItem(`gallery_view_password_${galleryName}`);
             }
+            updateLimitBanner();
             
             // Handle password based on gallery's password status
             if (!galleryHasEditPassword) {
@@ -485,6 +689,9 @@ async function loadGallery(galleryName, dir = '', view = currentView) {
             if (gallerySelector) gallerySelector.style.display = 'flex';
             if (headerRight) headerRight.style.display = 'none';
             if (brandTitle) brandTitle.style.display = 'block';
+            currentSettings = null;
+            currentLimits = null;
+            updateLimitBanner();
             if (galleryTitle) {
                 galleryTitle.textContent = '';
                 galleryTitle.style.display = 'none';
@@ -501,6 +708,9 @@ async function loadGallery(galleryName, dir = '', view = currentView) {
         if (gallerySelector) gallerySelector.style.display = 'flex';
         if (headerRight) headerRight.style.display = 'none';
         if (brandTitle) brandTitle.style.display = 'block';
+        currentSettings = null;
+        currentLimits = null;
+        updateLimitBanner();
         if (galleryTitle) {
             galleryTitle.textContent = '';
             galleryTitle.style.display = 'none';
@@ -598,6 +808,54 @@ function formatFileType(type) {
         default:
             return 'File';
     }
+}
+
+function formatBytesShort(bytes) {
+    if (!bytes) return '0 B';
+    const units = ['B', 'KB', 'MB', 'GB', 'TB'];
+    let idx = 0;
+    let value = bytes;
+    while (value >= 1024 && idx < units.length - 1) {
+        value /= 1024;
+        idx++;
+    }
+    return `${value.toFixed(value >= 10 ? 0 : 1)} ${units[idx]}`;
+}
+
+function formatMBOneDecimalComma(bytes) {
+    const mb = (bytes || 0) / (1024 * 1024);
+    return mb.toFixed(1).replace('.', ',') + ' MB';
+}
+
+function showLimitDialog(actionsOverride) {
+    if (!limitModal || !limitModalActions || !limitModalDesc) return;
+    const actions = actionsOverride
+        || (currentSettings && currentSettings.limitActions)
+        || (currentLimits && currentLimits.limitActions)
+        || [];
+    limitModalActions.innerHTML = '';
+    if (Array.isArray(actions) && actions.length) {
+        actions.forEach((action) => {
+            const btn = document.createElement('button');
+            btn.className = 'btn-primary';
+            btn.textContent = action.label || 'Contact admin';
+            btn.onclick = () => {
+                alert('Placeholder action. Please contact the admin.');
+            };
+            limitModalActions.appendChild(btn);
+        });
+        limitModalDesc.textContent = 'You can contact the admin or request more space.';
+    } else {
+        const note = document.createElement('p');
+        note.textContent = 'Contact the admin for more storage or time.';
+        limitModalActions.appendChild(note);
+        limitModalDesc.textContent = 'Upload limit reached.';
+    }
+    limitModal.style.display = 'flex';
+}
+
+function hideLimitDialog() {
+    if (limitModal) limitModal.style.display = 'none';
 }
 
 function createFileViewer(file) {
@@ -783,7 +1041,87 @@ function applyView(view) {
 
 function userCanUpload() {
     const isEditProtected = galleryHasEditPassword;
-    return hasViewAccess && (!isEditProtected || isLoggedIn);
+    const viewerUploadsAllowed = currentSettings?.viewerUploadsEnabled;
+    const limitsOk = !currentLimits || !Array.isArray(currentLimits.reasons) || currentLimits.reasons.length === 0;
+    return hasViewAccess && limitsOk && (!isEditProtected || isLoggedIn || viewerUploadsAllowed);
+}
+
+function updateLimitBanner() {
+    if (!limitBanner || !limitBannerText || !limitBannerActions) return;
+    if (!currentLimits) {
+        limitBanner.style.display = 'none';
+        limitBannerActions.innerHTML = '';
+        return;
+    }
+
+    const reasons = Array.isArray(currentLimits.reasons) ? currentLimits.reasons : [];
+    const stats = currentLimits.stats || {};
+    const usedBytesText = formatMBOneDecimalComma(stats.totalBytes || 0);
+    const maxBytesText = currentLimits.maxBytes
+        ? formatMBOneDecimalComma(currentLimits.maxBytes)
+        : null;
+    const bytesText = maxBytesText ? `${usedBytesText} of ${maxBytesText}` : `${usedBytesText} used`;
+    const photosText = currentLimits.maxPhotos
+        ? `${stats.fileCount || 0} of ${currentLimits.maxPhotos} photos`
+        : `${stats.fileCount || 0} photos`;
+    const expiresText = currentLimits.expiresAt
+        ? `Expires on ${new Date(currentLimits.expiresAt).toLocaleDateString()}`
+        : 'No expiry';
+
+    const blocked = reasons.length > 0;
+    const reasonText = blocked
+        ? `Uploads blocked: ${reasons.join(', ')}`
+        : '';
+
+    limitBannerText.innerHTML = '';
+    if (reasonText) {
+        const reasonSpan = document.createElement('span');
+        reasonSpan.textContent = reasonText;
+        limitBannerText.appendChild(reasonSpan);
+    }
+
+    const bytesBtn = document.createElement('button');
+    bytesBtn.type = 'button';
+    bytesBtn.className = 'link-button';
+    bytesBtn.textContent = reasonText ? ` · ${bytesText}` : bytesText;
+    bytesBtn.onclick = () => showLimitDialog();
+
+    const photosBtn = document.createElement('button');
+    photosBtn.type = 'button';
+    photosBtn.className = 'link-button';
+    photosBtn.textContent = ` · ${photosText}`;
+    photosBtn.onclick = () => showLimitDialog();
+
+    const expiresBtn = document.createElement('button');
+    expiresBtn.type = 'button';
+    expiresBtn.className = 'link-button';
+    expiresBtn.textContent = ` · ${expiresText}`;
+    expiresBtn.onclick = () => showLimitDialog();
+
+    limitBannerText.appendChild(bytesBtn);
+    limitBannerText.appendChild(photosBtn);
+    limitBannerText.appendChild(expiresBtn);
+    limitBanner.classList.toggle('limit-banner--blocked', blocked);
+    limitBanner.style.display = 'block';
+
+    limitBannerActions.innerHTML = '';
+    if (blocked) {
+        const actions = (currentSettings && currentSettings.limitActions) || (currentLimits && currentLimits.limitActions) || [];
+        if (Array.isArray(actions) && actions.length) {
+            actions.forEach((action) => {
+                const btn = document.createElement('button');
+                btn.className = 'btn-secondary limit-action-btn';
+                btn.textContent = action.label || 'Learn more';
+                btn.onclick = () => showLimitDialog(actions);
+                limitBannerActions.appendChild(btn);
+            });
+        } else {
+            const fallback = document.createElement('span');
+            fallback.className = 'limit-banner-hint';
+            fallback.textContent = 'Contact the admin for more space.';
+            limitBannerActions.appendChild(fallback);
+        }
+    }
 }
 
 function openUploadAreaForDrag() {
@@ -802,7 +1140,12 @@ function showUploadPermissionNotice() {
     const now = Date.now();
     if (now - lastUploadPermissionNotice < 3000) return; // throttle to avoid spam
     lastUploadPermissionNotice = now;
-    alert('You need to login to upload files to this gallery.');
+    const blockedByLimit = currentLimits && Array.isArray(currentLimits.reasons) && currentLimits.reasons.length > 0;
+    if (blockedByLimit) {
+        alert('Upload limit reached for this gallery. See the limit banner for details.');
+    } else {
+        alert('You need permission to upload files to this gallery.');
+    }
 }
 
 function updateViewToggleLabel() {
@@ -1102,7 +1445,13 @@ passwordInput.addEventListener('keypress', (e) => {
 
 // Upload files with compression
 async function uploadFiles(files) {
-    if (!isLoggedIn) {
+    if (!userCanUpload()) {
+        showUploadPermissionNotice();
+        return;
+    }
+
+    if (currentLimits && Array.isArray(currentLimits.reasons) && currentLimits.reasons.length > 0) {
+        updateLimitBanner();
         return;
     }
     
@@ -1262,6 +1611,10 @@ async function uploadFile(
                         resolve({ success: true, skipped: true });
                         return;
                     }
+                    if (response.limits) {
+                        currentLimits = response.limits;
+                        updateLimitBanner();
+                    }
                     if (progressFill) progressFill.style.width = '100%';
                     if (item) item.style.opacity = '0.5';
                     resolve({ success: true });
@@ -1276,6 +1629,9 @@ async function uploadFile(
                     if (xhr.status === 401) {
                         logout();
                         alert('Password invalid. Please login again.');
+                    } else if (xhr.status === 413 && response.limits) {
+                        currentLimits = response.limits;
+                        updateLimitBanner();
                     }
                     resolve({ success: false, error: errorMsg });
                 }
@@ -1645,6 +2001,13 @@ function normalizeRelativePath(path) {
     // Remove redundant ./ segments
     clean = clean.split('/').filter(p => p !== '' && p !== '.').join('/');
     return clean || path;
+}
+
+function computeSafePath(relativePath, baseDir = '') {
+    const incoming = normalizeRelativePath(relativePath || '');
+    if (!incoming && !baseDir) return '';
+    const base = baseDir ? normalizeRelativePath(baseDir) : '';
+    return base ? normalizeRelativePath(`${base}/${incoming}`) : incoming;
 }
 
 function showError(message) {

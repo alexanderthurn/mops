@@ -34,8 +34,20 @@ switch ($action) {
         handleDownloadZip();
         break;
     
+    case 'create_gallery_public':
+        handleCreateGalleryPublic();
+        break;
+
+    case 'suggest_gallery_names':
+        handleSuggestGalleryNames();
+        break;
+
     case 'auth':
         handleAuth();
+        break;
+
+    case 'public_config':
+        handlePublicConfig();
         break;
     
     default:
@@ -87,6 +99,8 @@ function handleList() {
         ? ['dirs' => [], 'files' => scanGallery($gallery, $dir)]
         : listGalleryDirectory($gallery, $dir);
     $hasPassword = file_exists($galleryPath . '/.password');
+    $gallerySettings = loadGallerySettings($gallery);
+    $limits = evaluateGalleryUploadAllowance($gallery, $gallerySettings, 0, 0);
     
     echo json_encode([
         'success' => true,
@@ -97,7 +111,16 @@ function handleList() {
         'files' => $listing['files'],
         'hasPassword' => $hasPassword,
         'hasEditPassword' => $hasPassword,
-        'hasViewPassword' => $hasViewPassword
+        'hasViewPassword' => $hasViewPassword,
+        'settings' => [
+            'viewerUploadsEnabled' => $gallerySettings['viewerUploadsEnabled'],
+            'maxGalleryBytes' => $gallerySettings['maxGalleryBytes'],
+            'maxPhotos' => $gallerySettings['maxPhotos'],
+            'lifetimeDays' => $gallerySettings['lifetimeDays'],
+            'createdAt' => $gallerySettings['createdAt'],
+            'limitActions' => $gallerySettings['limitActions']
+        ],
+        'limits' => $limits
     ]);
 }
 
@@ -120,27 +143,40 @@ function handleUpload() {
     $galleryPath = getGalleryPath($gallery);
     $hasPassword = file_exists($galleryPath . '/.password');
     $hasViewPassword = file_exists($galleryPath . '/.viewpassword');
+    $gallerySettings = loadGallerySettings($gallery);
     
     if ($hasViewPassword && !verifyGalleryViewAccess($gallery, $viewPassword)) {
         http_response_code(401);
         echo json_encode(['error' => 'View password required or invalid']);
         return;
     }
+
+    $hasViewAccess = !$hasViewPassword || verifyGalleryViewAccess($gallery, $viewPassword);
+    $allowViewerUpload = !empty($gallerySettings['viewerUploadsEnabled']);
+    $editorVerified = false;
     
     // Only require password if gallery has password protection
     if ($hasPassword) {
-        if (empty($password)) {
-            http_response_code(401);
-            echo json_encode(['error' => 'Password required']);
-            return;
+        if (!empty($password) && verifyGalleryPassword($gallery, $password)) {
+            $editorVerified = true;
         }
-        
-        // Verify password
-        if (!verifyGalleryPassword($gallery, $password)) {
+
+        $canSkipEditorPassword = $allowViewerUpload && $hasViewAccess;
+
+        if (!$editorVerified && !$canSkipEditorPassword) {
+            if (empty($password)) {
+                http_response_code(401);
+                echo json_encode(['error' => 'Password required']);
+                return;
+            }
             http_response_code(401);
             echo json_encode(['error' => 'Invalid password']);
             return;
         }
+    }
+
+    if (!$hasPassword) {
+        $editorVerified = true;
     }
     
     $galleryPath = getGalleryPath($gallery);
@@ -348,6 +384,21 @@ function handleUpload() {
         return;
     }
 
+    // Per-gallery aggregate limits (bytes, count, lifetime)
+    $limitState = evaluateGalleryUploadAllowance($gallery, $gallerySettings, $chosenSize, 1);
+    if (!$limitState['allowed']) {
+        if ($tempCandidate) {
+            @unlink($tempCandidate);
+        }
+        http_response_code(413);
+        echo json_encode([
+            'error' => 'Gallery upload limit reached',
+            'reason' => $limitState['reasons'],
+            'limits' => $limitState
+        ]);
+        return;
+    }
+
     // Move chosen file to target
     $moved = false;
     if ($chosenTmpPath === $file['tmp_name']) {
@@ -374,10 +425,12 @@ function handleUpload() {
     
     // Use the resolved relativePath for response
     $fileResponse = buildFileResponse(basename($targetPath), $relativePath, $targetPath);
+    $limitsAfter = evaluateGalleryUploadAllowance($gallery, $gallerySettings, 0, 0);
     
     echo json_encode([
         'success' => true,
-        'file' => $fileResponse
+        'file' => $fileResponse,
+        'limits' => $limitsAfter
     ]);
 }
 
@@ -604,8 +657,8 @@ function handleDownloadZip() {
         if ($file->isFile()) {
             $filename = $file->getFilename();
             
-            // Skip hidden files and password files
-            if ($filename[0] === '.' || $filename === '.password' || $filename === '.viewpassword') {
+            // Skip hidden files, password files, and per-gallery settings file
+            if ($filename[0] === '.' || $filename === '.password' || $filename === '.viewpassword' || $filename === GALLERY_SETTINGS_FILE) {
                 continue;
             }
             
@@ -650,6 +703,86 @@ function handleDownloadZip() {
     // Clean up temporary file
     unlink($zipPath);
     exit;
+}
+
+function handleCreateGalleryPublic() {
+    $settings = getSettings();
+
+    if (empty($settings['allowPublicGalleryCreation'])) {
+        http_response_code(403);
+        echo json_encode(['error' => 'Public gallery creation is disabled']);
+        return;
+    }
+
+    $name = isset($_POST['name']) ? $_POST['name'] : '';
+    if ($name === '') {
+        $name = generateGallerySlug();
+    }
+
+    $sanitized = sanitizeGalleryName($name);
+    if ($sanitized !== $name) {
+        http_response_code(400);
+        echo json_encode(['error' => 'Invalid gallery name. Only alphanumeric, underscore, and hyphen allowed.']);
+        return;
+    }
+
+    $galleryPath = getGalleryPath($sanitized);
+
+    if (is_dir($galleryPath)) {
+        http_response_code(400);
+        echo json_encode(['error' => 'Gallery already exists']);
+        return;
+    }
+
+    if (!is_dir(DATA_ROOT)) {
+        @mkdir(DATA_ROOT, 0755, true);
+    }
+
+    if (!mkdir($galleryPath, 0755, true)) {
+        http_response_code(500);
+        echo json_encode(['error' => 'Failed to create gallery']);
+        return;
+    }
+
+    // Initialize per-gallery settings using strict public defaults
+    $gallerySettings = loadGallerySettings($sanitized, 'public', $settings);
+
+    echo json_encode([
+        'success' => true,
+        'gallery' => $sanitized,
+        'settings' => $gallerySettings
+    ]);
+}
+
+function handleSuggestGalleryNames() {
+    $settings = getSettings();
+    if (empty($settings['allowPublicGalleryCreation'])) {
+        http_response_code(403);
+        echo json_encode(['error' => 'Public gallery creation is disabled']);
+        return;
+    }
+
+    $count = isset($_GET['count']) ? (int) $_GET['count'] : 5;
+    $count = max(1, min(10, $count));
+
+    echo json_encode([
+        'success' => true,
+        'suggestions' => generateGalleryNameSuggestions($count)
+    ]);
+}
+
+function handlePublicConfig() {
+    $settings = getSettings();
+    echo json_encode([
+        'success' => true,
+        'allowPublicGalleryCreation' => !empty($settings['allowPublicGalleryCreation']),
+        'publicDefaults' => [
+            'viewerUploadsEnabled' => !empty($settings['publicDefaultViewerUploadsEnabled']),
+            'maxGalleryBytes' => (int) ($settings['publicDefaultMaxGalleryBytes'] ?? 0),
+            'maxPhotos' => (int) ($settings['publicDefaultMaxPhotos'] ?? 0),
+            'lifetimeDays' => (int) ($settings['publicDefaultLifetimeDays'] ?? 0),
+        ]
+    ]);
 }
 
 function handleAuth() {
