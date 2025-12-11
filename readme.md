@@ -1,4 +1,4 @@
-# Ultra Simple PHP Gallery
+# MOPS: minimalistc open photo share
 
 The most simple photo gallery! Just upload it to your Apache/PHP server. It focuses on being fast, minimal, and easy: upload the `web/` folder, visit `admin/`, set an admin password, and let your friends add photos (passwordless or with password)
 

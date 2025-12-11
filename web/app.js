@@ -25,9 +25,10 @@ const galleryInput = document.getElementById('gallery-input');
 const loadGalleryBtn = document.getElementById('load-gallery-btn');
 const gallerySelector = document.getElementById('gallery-selector');
 const brandTitle = document.getElementById('brand-title');
-const titleActions = document.getElementById('title-actions');
+const headerLeft = document.getElementById('header-left');
 const headerActions = document.getElementById('header-actions');
 const headerRight = document.getElementById('header-right');
+const headerLogo = document.getElementById('header-logo');
 const loginToggle = document.getElementById('login-toggle');
 const loginWrapper = document.getElementById('login-wrapper');
 const headerLoginForm = document.getElementById('login-wrapper');
@@ -39,7 +40,6 @@ const galleryInfo = document.getElementById('gallery-info');
 const galleryTitle = document.getElementById('gallery-title');
 const downloadZipBtn = document.getElementById('download-zip-btn');
 const downloadDirZipBtn = document.getElementById('download-dir-zip-btn');
-const downloadDirZipHint = document.getElementById('download-dir-zip-hint');
 const uploadBtn = document.getElementById('upload-btn');
 const closeUploadBtn = document.getElementById('close-upload-btn');
 const fileInput = document.getElementById('file-input');
@@ -59,6 +59,7 @@ const uploadFolderBtn = document.getElementById('upload-folder-btn');
 const viewToggleBtn = document.getElementById('view-toggle-btn');
 const directoryList = document.getElementById('directory-list');
 const directoryBreadcrumb = document.getElementById('directory-breadcrumb');
+const galleryMeta = document.getElementById('gallery-meta');
 const galleryGrid = document.getElementById('gallery-grid');
 const emptyState = document.getElementById('empty-state');
 const passwordModal = document.getElementById('password-modal');
@@ -77,6 +78,8 @@ const lightboxRightHotspot = document.getElementById('lightbox-right-hotspot');
 const limitBanner = document.getElementById('limit-banner');
 const limitBannerText = document.getElementById('limit-banner-text');
 const limitBannerActions = document.getElementById('limit-banner-actions');
+const limitFooter = document.getElementById('limit-footer');
+const limitFooterText = document.getElementById('limit-footer-text');
 const needMoreModal = document.getElementById('need-more-modal');
 const needMoreModalActions = document.getElementById('need-more-modal-actions');
 const needMoreModalClose = document.getElementById('need-more-modal-close');
@@ -184,13 +187,14 @@ window.addEventListener('DOMContentLoaded', () => {
         if (gallerySelector) gallerySelector.style.display = 'flex';
         if (emptyState) emptyState.style.display = 'block';
         if (headerRight) headerRight.style.display = 'none';
-        if (brandTitle) brandTitle.style.display = 'block';
+        if (brandTitle) brandTitle.style.display = 'none';
+        if (headerLeft) headerLeft.style.display = 'none';
+        if (headerLogo) headerLogo.style.display = 'none';
         if (galleryTitle) {
-            galleryTitle.textContent = '';
             galleryTitle.style.display = 'none';
         }
         if (headerActions) headerActions.style.display = 'none';
-        if (titleActions) titleActions.style.display = 'none';
+        updateGalleryMeta();
     }
 });
 
@@ -345,7 +349,6 @@ function updateLoginUI() {
     if (!currentGallery) {
         if (headerRight) headerRight.style.display = 'none';
         if (headerActions) headerActions.style.display = 'none';
-        if (titleActions) titleActions.style.display = 'none';
         if (loginToggle) loginToggle.style.display = 'none';
         return;
     }
@@ -372,7 +375,6 @@ function updateLoginUI() {
         }
         if (loggedInWrapper) loggedInWrapper.style.display = 'none';
         if (headerActions) headerActions.style.display = 'none';
-        if (titleActions) titleActions.style.display = 'none';
         updateDeleteButtonsVisibility();
         return;
     }
@@ -388,9 +390,6 @@ function updateLoginUI() {
         if (loginToggle) loginToggle.style.display = 'none';
         if (loggedInWrapper) loggedInWrapper.style.display = 'none';
         if (headerActions) headerActions.style.display = 'flex';
-        if (titleActions) {
-            titleActions.style.display = currentGallery ? 'flex' : 'none';
-        }
         if (uploadBtn) uploadBtn.style.display = 'block';
         updateDeleteButtonsVisibility();
         return;
@@ -400,9 +399,6 @@ function updateLoginUI() {
     if (loginWrapper) loginWrapper.style.display = 'none';
     if (loginToggle) loginToggle.style.display = 'none';
     if (headerActions) headerActions.style.display = 'flex';
-    if (titleActions) {
-        titleActions.style.display = currentGallery ? 'flex' : 'none';
-    }
     
     // Logged-in UI shows for both view-only and editor modes
     if (loggedInWrapper) {
@@ -583,12 +579,12 @@ async function loadGallery(galleryName, dir = '', view = currentView) {
         closeUploadBtn.style.display = keepUploadAreaOpen ? 'block' : 'none';
     }
     if (galleryTitle) {
-        galleryTitle.textContent = galleryName;
-        galleryTitle.style.display = 'block';
+        galleryTitle.style.display = 'inline-flex';
     }
-    if (brandTitle) brandTitle.style.display = 'none';
+    if (brandTitle) brandTitle.style.display = 'flex';
+    if (headerLeft) headerLeft.style.display = 'flex';
+    if (headerLogo) headerLogo.style.display = 'block';
     if (headerActions) headerActions.style.display = 'flex';
-    if (titleActions) titleActions.style.display = 'flex';
     
     // Hide empty state and gallery selector
     if (emptyState) emptyState.style.display = 'none';
@@ -639,6 +635,7 @@ async function loadGallery(galleryName, dir = '', view = currentView) {
                 sessionStorage.removeItem(`gallery_view_password_${galleryName}`);
             }
             updateLimitBanner();
+            updateGalleryMeta();
             
             // Handle password based on gallery's password status
             if (!galleryHasEditPassword) {
@@ -690,16 +687,17 @@ async function loadGallery(galleryName, dir = '', view = currentView) {
             if (emptyState) emptyState.style.display = 'block';
             if (gallerySelector) gallerySelector.style.display = 'flex';
             if (headerRight) headerRight.style.display = 'none';
-            if (brandTitle) brandTitle.style.display = 'block';
+            if (brandTitle) brandTitle.style.display = 'none';
+            if (headerLeft) headerLeft.style.display = 'none';
+            if (headerLogo) headerLogo.style.display = 'none';
             currentSettings = null;
             currentLimits = null;
             updateLimitBanner();
+            updateGalleryMeta();
             if (galleryTitle) {
-                galleryTitle.textContent = '';
                 galleryTitle.style.display = 'none';
             }
             if (headerActions) headerActions.style.display = 'none';
-            if (titleActions) titleActions.style.display = 'none';
             setPageMetadata();
         }
     } catch (error) {
@@ -709,16 +707,17 @@ async function loadGallery(galleryName, dir = '', view = currentView) {
         if (emptyState) emptyState.style.display = 'block';
         if (gallerySelector) gallerySelector.style.display = 'flex';
         if (headerRight) headerRight.style.display = 'none';
-        if (brandTitle) brandTitle.style.display = 'block';
+        if (brandTitle) brandTitle.style.display = 'none';
+        if (headerLeft) headerLeft.style.display = 'none';
+        if (headerLogo) headerLogo.style.display = 'none';
         currentSettings = null;
         currentLimits = null;
         updateLimitBanner();
+        updateGalleryMeta();
         if (galleryTitle) {
-            galleryTitle.textContent = '';
             galleryTitle.style.display = 'none';
         }
         if (headerActions) headerActions.style.display = 'none';
-        if (titleActions) titleActions.style.display = 'none';
         setPageMetadata();
     }
 }
@@ -731,7 +730,7 @@ function displayGallery(files, hasDirectoriesOverride) {
     if (files.length === 0 && !hasDirectories) {
         const canUpload = userCanUpload();
         const msg = canUpload
-            ? 'No photos yet. Drag your images here or click Upload.'
+            ? 'No files yet. Drag your files here or click Upload.'
             : 'This gallery is empty';
         galleryGrid.innerHTML = `<div class="empty-state"><p>${msg}</p></div>`;
         return;
@@ -1002,7 +1001,7 @@ if (downloadZipBtn) {
 
 if (downloadDirZipBtn) {
     downloadDirZipBtn.addEventListener('click', () => {
-        if (!currentGallery || !currentDir) {
+        if (!currentGallery) {
             return;
         }
         const dirParam = currentDir ? `&dir=${encodeURIComponent(currentDir)}` : '';
@@ -1071,10 +1070,12 @@ function userCanUpload() {
 }
 
 function updateLimitBanner() {
-    if (!limitBanner || !limitBannerText || !limitBannerActions) return;
-    if (!currentLimits) {
+    if (!limitBanner || !limitBannerText || !limitBannerActions || !limitFooter || !limitFooterText) return;
+    if (!currentGallery || !currentLimits) {
         limitBanner.style.display = 'none';
         limitBannerActions.innerHTML = '';
+        limitFooter.style.display = 'none';
+        limitFooterText.textContent = '';
         return;
     }
 
@@ -1084,10 +1085,11 @@ function updateLimitBanner() {
     const maxBytesText = currentLimits.maxBytes
         ? formatMBOneDecimalComma(currentLimits.maxBytes)
         : null;
-    const bytesText = maxBytesText ? `${usedBytesText} of ${maxBytesText}` : `${usedBytesText} used`;
+    const bytesText = maxBytesText ? `${usedBytesText} / ${maxBytesText}` : `${usedBytesText} used`;
+    const filesCount = Array.isArray(currentFiles) ? currentFiles.length : (stats.fileCount || 0);
     const photosText = currentLimits.maxPhotos
-        ? `${stats.fileCount || 0} of ${currentLimits.maxPhotos} photos`
-        : `${stats.fileCount || 0} photos`;
+        ? `${filesCount} / ${currentLimits.maxPhotos} files`
+        : `${filesCount} files`;
     const expiresText = currentLimits.expiresAt
         ? `Expires on ${new Date(currentLimits.expiresAt).toLocaleDateString()}`
         : 'No expiry';
@@ -1095,50 +1097,28 @@ function updateLimitBanner() {
     const blocked = reasons.length > 0;
     const reasonText = blocked ? 'Quota reached' : '';
 
-    limitBannerText.innerHTML = '';
-
-    const infoRow = document.createElement('div');
-    infoRow.className = 'limit-banner-row';
-
-    const infoGroup = document.createElement('div');
-    infoGroup.className = 'limit-banner-info';
-
-    const bytesBtn = document.createElement('button');
-    bytesBtn.type = 'button';
-    bytesBtn.className = 'link-button';
-    bytesBtn.textContent = bytesText;
-    bytesBtn.onclick = () => showNeedMoreDialog();
-
-    const photosBtn = document.createElement('button');
-    photosBtn.type = 'button';
-    photosBtn.className = 'link-button';
-    photosBtn.textContent = ` · ${photosText}`;
-    photosBtn.onclick = () => showNeedMoreDialog();
-
-    const expiresBtn = document.createElement('button');
-    expiresBtn.type = 'button';
-    expiresBtn.className = 'link-button';
-    expiresBtn.textContent = ` · ${expiresText}`;
-    expiresBtn.onclick = () => showNeedMoreDialog();
-
-    infoGroup.appendChild(bytesBtn);
-    infoGroup.appendChild(photosBtn);
-    infoGroup.appendChild(expiresBtn);
-    infoRow.appendChild(infoGroup);
-
-    if (reasonText) {
-        const reasonSpan = document.createElement('span');
-        reasonSpan.className = 'limit-banner-reason';
-        reasonSpan.textContent = reasonText;
-        infoRow.appendChild(reasonSpan);
+    // Top banner: only when blocked
+    if (blocked) {
+        limitBannerText.textContent = `${bytesText} · ${photosText} · ${expiresText} · ${reasonText}`;
+        limitBanner.classList.add('limit-banner--blocked');
+        limitBanner.style.display = 'block';
+    } else {
+        limitBannerText.textContent = '';
+        limitBanner.classList.remove('limit-banner--blocked');
+        limitBanner.style.display = 'none';
     }
-
-    limitBannerText.appendChild(infoRow);
-    limitBanner.classList.toggle('limit-banner--blocked', blocked);
-    limitBanner.style.display = 'block';
-
     limitBannerActions.innerHTML = '';
-    // No inline actions; use the Need more? dialog instead.
+
+    // Bottom summary: always show when limits exist
+    limitFooterText.textContent = `${bytesText} · ${photosText} · ${expiresText}`;
+    limitFooter.style.display = 'flex';
+
+    updateGalleryMeta();
+}
+
+function updateGalleryMeta() {
+    if (!galleryMeta) return;
+    galleryMeta.textContent = 'mops';
 }
 
 function openUploadAreaForDrag() {
@@ -1954,14 +1934,10 @@ function updateBreadcrumb(hasDirectories) {
     
     directoryBreadcrumb.innerHTML = '';
     
-    // Only show breadcrumbs when inside a subdirectory
-    const shouldShow = !!currentDir;
+    // Show breadcrumbs whenever a gallery is loaded (even at root)
+    const shouldShow = !!currentGallery;
     if (downloadDirZipBtn) {
         downloadDirZipBtn.style.display = shouldShow ? 'inline-flex' : 'none';
-    }
-    if (downloadDirZipHint) {
-        // Allow CSS hover rules to control visibility when present
-        downloadDirZipHint.style.display = shouldShow ? '' : 'none';
     }
     if (!shouldShow) {
         directoryBreadcrumb.style.display = 'none';
