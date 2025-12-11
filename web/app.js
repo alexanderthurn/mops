@@ -800,8 +800,8 @@ function showUploadPermissionNotice() {
 function updateViewToggleLabel() {
     if (!viewToggleBtn) return;
     viewToggleBtn.textContent = currentView === 'flat'
-        ? 'Show folders'
-        : 'Show all images in all folders';
+        ? 'Flat View'
+        : 'Folder View';
 }
 
 function pushStateWithParams(overrideDir) {
@@ -847,16 +847,22 @@ if (uploadDropzone) {
         }
         
         const items = e.dataTransfer.items;
-        if (items && items.length > 0) {
+        const hasItems = items && items.length > 0;
+        const hasDirectory = hasItems && Array.from(items).some((it) => {
+            const entry = it.webkitGetAsEntry ? it.webkitGetAsEntry() : null;
+            return entry && entry.isDirectory;
+        });
+
+        if (hasItems && hasDirectory) {
             extractFilesFromItems(items)
                 .then((files) => uploadFiles(files))
                 .catch((err) => {
                     console.error('Folder drop parsing failed:', err);
-                    const fallback = Array.from(e.dataTransfer.files);
+                    const fallback = Array.from(e.dataTransfer.files || []);
                     uploadFiles(fallback);
                 });
         } else {
-            const files = Array.from(e.dataTransfer.files);
+            const files = Array.from(e.dataTransfer.files || []);
             uploadFiles(files);
         }
     });
@@ -883,7 +889,13 @@ document.addEventListener('drop', (e) => {
     openUploadAreaForDrag();
     if (uploadDropzone) uploadDropzone.style.borderColor = 'var(--border)';
     const items = e.dataTransfer?.items;
-    if (items && items.length > 0) {
+    const hasItems = items && items.length > 0;
+    const hasDirectory = hasItems && Array.from(items).some((it) => {
+        const entry = it.webkitGetAsEntry ? it.webkitGetAsEntry() : null;
+        return entry && entry.isDirectory;
+    });
+
+    if (hasItems && hasDirectory) {
         extractFilesFromItems(items)
             .then((files) => uploadFiles(files))
             .catch((err) => {

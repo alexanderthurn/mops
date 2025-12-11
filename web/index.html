@@ -41,9 +41,6 @@
             <div class="header-right" id="header-right" style="display: none;">
                 <button id="login-toggle" class="btn-secondary login-toggle" aria-expanded="false" style="display: none;">Login</button>
                 <div class="header-actions" id="header-actions" style="display: none;">
-                    <button id="view-toggle-btn" class="btn-secondary" aria-label="Toggle view mode" style="display: none;">
-                        Expand all images in all folders
-                    </button>
                     <button id="upload-btn" class="btn-primary">Upload</button>
                 </div>
                 <form class="login-wrapper" id="login-wrapper" style="display: none;" autocomplete="off">
@@ -102,7 +99,7 @@
 
             <div class="directory-bar">
                 <div id="directory-breadcrumb" class="directory-breadcrumb" style="display: none;"></div>
-                <button id="download-dir-zip-btn" class="directory-download" aria-label="Download current folder as ZIP" title="Download directory as ZIP" style="display: none;">
+                <button id="download-dir-zip-btn" class="mini-action-btn directory-download" aria-label="Download current folder as ZIP" title="Download directory as ZIP" style="display: none;">
                     <span class="download-icon" aria-hidden="true">
                         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                             <path d="M6 2h9l3 3v15a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2z"/>
@@ -112,6 +109,9 @@
                         </svg>
                     </span>
                     <span class="download-label">Download folder</span>
+                </button>
+                <button id="view-toggle-btn" class="view-toggle-text" aria-label="Toggle view mode" style="display: none;">
+                    Folder View
                 </button>
                 <span id="download-dir-zip-hint" class="directory-download-hint" style="display: none;">Download directory as ZIP</span>
             </div>
