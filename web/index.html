@@ -26,7 +26,7 @@
                     </div>
                     <div class="title-row">
                         <h1 id="gallery-title" class="gallery-title" style="display: none;">mops</h1>
-                        <button id="download-dir-zip-btn" class="mini-action-btn directory-download" aria-label="Download as ZIP" title="Download as ZIP" style="display: none;">
+                        <button id="download-dir-zip-btn" class="mini-action-btn header-icon-btn directory-download" aria-label="Download as ZIP" title="Download as ZIP" style="display: none;">
                             <span class="download-icon" aria-hidden="true">
                                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                                     <path d="M6 2h9l3 3v15a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2z"/>
@@ -35,7 +35,17 @@
                                     <path d="M9.5 13.5 12 16l2.5-2.5"/>
                                 </svg>
                             </span>
-                            <span class="download-label">Download ZIP</span>
+                            <span class="icon-action-label download-label">Download ZIP</span>
+                        </button>
+                        <button id="share-btn" class="mini-action-btn header-icon-btn share-action" aria-label="Share" title="Share" style="display: none;">
+                            <span class="icon-action-icon" aria-hidden="true">
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                    <path d="M4 12v6a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-6"/>
+                                    <path d="M16 6 12 2 8 6"/>
+                                    <path d="M12 2v13"/>
+                                </svg>
+                            </span>
+                            <span class="icon-action-label share-label">Share</span>
                         </button>
                     </div>
                     <span id="gallery-meta" class="product-tag">mops</span>
@@ -44,7 +54,6 @@
             <div class="header-right" id="header-right" style="display: none;">
                 <button id="login-toggle" class="btn-secondary login-toggle" aria-expanded="false" style="display: none;">Login</button>
                 <div class="header-actions" id="header-actions" style="display: none;">
-                    <button id="share-btn" class="btn-secondary" style="display: none;">Share</button>
                     <button id="upload-btn" class="btn-primary">Upload</button>
                 </div>
                 <form class="login-wrapper" id="login-wrapper" style="display: none;" autocomplete="off">

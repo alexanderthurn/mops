@@ -436,6 +436,7 @@ body {
     height: 32px;
 }
 
+.icon-action-label,
 .download-label {
     overflow: hidden;
     max-width: 0;
@@ -1025,6 +1026,50 @@ button, .btn-primary, .btn-secondary {
 .mini-action-btn svg {
     width: 16px;
     height: 16px;
+}
+
+.header-icon-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    background: transparent;
+    border: none;
+    box-shadow: none;
+    color: var(--text-primary);
+    font-weight: 700;
+    cursor: pointer;
+    padding: 0.15rem 0.5rem;
+    border-radius: 6px;
+    transition: background 0.2s ease, color 0.2s ease;
+}
+
+.header-icon-btn:hover,
+.header-icon-btn:focus-visible {
+    background: var(--bg-tertiary);
+    color: var(--text-primary);
+}
+
+.header-icon-btn .icon-action-icon {
+    display: inline-flex;
+}
+
+.header-icon-btn .icon-action-icon svg {
+    width: 16px;
+    height: 16px;
+}
+
+.header-icon-btn:hover .icon-action-label,
+.header-icon-btn:focus-visible .icon-action-label {
+    max-width: 180px;
+    opacity: 1;
+    margin-left: 0.2rem;
+}
+
+/* Share button: keep text visible */
+.share-action .icon-action-label {
+    max-width: 180px;
+    opacity: 1;
+    margin-left: 0.2rem;
 }
 
 .directory-download:hover .download-label,
