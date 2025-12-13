@@ -451,11 +451,42 @@ function handleGetPage() {
         return;
     }
     
-    $filePath = WEB_ROOT . '/' . $page;
+    // Ensure data directory exists
+    if (!is_dir(DATA_ROOT)) {
+        @mkdir(DATA_ROOT, 0755, true);
+    }
+    
+    $filePath = DATA_ROOT . '/' . $page;
+    
+    // If file doesn't exist in data/, copy from default
     if (!file_exists($filePath)) {
-        http_response_code(404);
-        echo json_encode(['error' => 'File not found']);
-        return;
+        $defaultPath = WEB_ROOT . '/' . $page . '.default';
+        if (file_exists($defaultPath)) {
+            // Copy default file to data directory
+            if (copy($defaultPath, $filePath)) {
+                // File copied successfully
+            } else {
+                http_response_code(500);
+                echo json_encode(['error' => 'Failed to copy default file']);
+                return;
+            }
+        } else {
+            // Try old location without .default extension for backward compatibility
+            $oldDefaultPath = WEB_ROOT . '/' . $page;
+            if (file_exists($oldDefaultPath)) {
+                if (copy($oldDefaultPath, $filePath)) {
+                    // File copied successfully
+                } else {
+                    http_response_code(500);
+                    echo json_encode(['error' => 'Failed to copy default file']);
+                    return;
+                }
+            } else {
+                http_response_code(404);
+                echo json_encode(['error' => 'File not found']);
+                return;
+            }
+        }
     }
     
     $content = file_get_contents($filePath);
@@ -475,7 +506,34 @@ function handleSavePage() {
         return;
     }
     
-    $filePath = WEB_ROOT . '/' . $page;
+    // Ensure data directory exists
+    if (!is_dir(DATA_ROOT)) {
+        if (!@mkdir(DATA_ROOT, 0755, true)) {
+            http_response_code(500);
+            echo json_encode(['error' => 'Failed to create data directory']);
+            return;
+        }
+    }
+    
+    $filePath = DATA_ROOT . '/' . $page;
+    
+    // If file doesn't exist in data/, copy from default first
+    if (!file_exists($filePath)) {
+        $defaultPath = WEB_ROOT . '/' . $page . '.default';
+        if (file_exists($defaultPath)) {
+            if (!copy($defaultPath, $filePath)) {
+                // If copy fails, continue anyway - we'll try to create the file
+            }
+        } else {
+            // Try old location without .default extension for backward compatibility
+            $oldDefaultPath = WEB_ROOT . '/' . $page;
+            if (file_exists($oldDefaultPath)) {
+                if (!copy($oldDefaultPath, $filePath)) {
+                    // If copy fails, continue anyway - we'll try to create the file
+                }
+            }
+        }
+    }
     
     if (file_put_contents($filePath, $content) !== false) {
         echo json_encode(['success' => true, 'message' => 'Page saved']);

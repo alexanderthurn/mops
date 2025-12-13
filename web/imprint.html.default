@@ -4,14 +4,14 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Imprint - mops</title>
-    <link rel="stylesheet" href="style.css">
-    <link rel="icon" href="icon.svg" type="image/svg+xml">
+    <link rel="stylesheet" href="../style.css">
+    <link rel="icon" href="../icon.svg" type="image/svg+xml">
 </head>
 <body>
     <div class="container text-page">
         <header class="header">
             <div class="header-content">
-                <a href="index.html" class="back-link">← Back</a>
+                <a href="../index.html" class="back-link">← Back</a>
             </div>
         </header>
         <main>
