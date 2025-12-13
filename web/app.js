@@ -857,7 +857,7 @@ async function loadGallery(galleryName, dir = '', view = currentView) {
             currentFiles = userFiles;
             currentDir = normalizeRelativePath(data.dir || '');
             currentView = data.view === 'flat' ? 'flat' : 'dir';
-            galleryHasEditPassword = data.hasEditPassword ?? data.hasPassword ?? false;
+            galleryHasEditPassword = data.hasEditPassword ?? false;
             galleryHasPassword = galleryHasEditPassword;
             galleryHasViewPassword = data.hasViewPassword || false;
             hasViewAccess = true;
@@ -1368,14 +1368,12 @@ if (downloadDirZipBtn) {
 // Upload functionality
 if (uploadBtn) {
     uploadBtn.addEventListener('click', () => {
-        if (!isLoggedIn) {
+        if (!userCanUpload()) {
             // Should not happen as button should be hidden, but just in case
-            if (galleryHasPassword) {
-                alert('Please login first');
-            }
+            showUploadPermissionNotice();
             return;
         }
-        // User is logged in, show upload area
+        // User can upload, show upload area
         if (uploadArea) {
             uploadArea.style.display = 'block';
             uploadArea.classList.add('keep-open');
@@ -1555,7 +1553,7 @@ function pushStateWithParams(overrideDir) {
 
 if (uploadDropzone) {
     uploadDropzone.addEventListener('click', () => {
-        if (!isLoggedIn) {
+        if (!userCanUpload()) {
             return;
         }
         if (fileInput) fileInput.click();
@@ -1574,7 +1572,7 @@ if (uploadDropzone) {
         e.preventDefault();
         if (uploadDropzone) uploadDropzone.style.borderColor = 'var(--border)';
         
-        if (!isLoggedIn) {
+        if (!userCanUpload()) {
             return;
         }
         
@@ -1716,7 +1714,7 @@ function showConflictResolver(conflicts, totalCount = 0) {
 if (uploadFilesBtn) {
     uploadFilesBtn.addEventListener('click', (e) => {
         e.stopPropagation();
-        if (!isLoggedIn) return;
+        if (!userCanUpload()) return;
         if (fileInput) fileInput.click();
     });
 }
@@ -1724,7 +1722,7 @@ if (uploadFilesBtn) {
 if (uploadFolderBtn) {
     uploadFolderBtn.addEventListener('click', (e) => {
         e.stopPropagation();
-        if (!isLoggedIn) return;
+        if (!userCanUpload()) return;
         if (dirInput) dirInput.click();
     });
 }

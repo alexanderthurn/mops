@@ -115,7 +115,6 @@ function handleList() {
         'view' => $view === 'flat' ? 'flat' : 'dir',
         'directories' => $listing['dirs'],
         'files' => $listing['files'],
-        'hasPassword' => $hasPassword,
         'hasEditPassword' => $hasPassword,
         'hasViewPassword' => $hasViewPassword,
         'settings' => [

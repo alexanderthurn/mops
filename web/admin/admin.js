@@ -675,7 +675,7 @@ function displayGalleries(galleries) {
 
         const info = document.createElement('div');
         info.className = 'gallery-info';
-        const hasEditPassword = gallery.hasEditPassword ?? gallery.hasPassword;
+        const hasEditPassword = gallery.hasEditPassword ?? false;
         const hasViewPassword = gallery.hasViewPassword ?? false;
         
         const badges = document.createElement('div');

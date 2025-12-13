@@ -155,7 +155,6 @@ function handleListGalleries() {
             
             $galleries[] = [
                 'name' => $dir,
-                'hasPassword' => $hasPassword,
                 'hasEditPassword' => $hasPassword,
                 'hasViewPassword' => $hasViewPassword,
                 'fileCount' => $stats['fileCount'],
