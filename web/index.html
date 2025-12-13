@@ -57,7 +57,8 @@
                     <button id="upload-btn" class="btn-primary">Upload</button>
                 </div>
                 <form class="login-wrapper" id="login-wrapper" style="display: none;" autocomplete="off">
-                    <input type="password" id="header-password-input" placeholder="Password" class="header-password-input">
+                    <input type="text" name="username" autocomplete="username" style="display: none;" tabindex="-1" aria-hidden="true">
+                    <input type="password" id="header-password-input" placeholder="Password" class="header-password-input" autocomplete="current-password">
                     <button id="login-btn" class="btn-primary" type="submit">Login</button>
                 </form>
                 <div class="logged-in-wrapper" id="logged-in-wrapper" style="display: none;">
@@ -92,7 +93,7 @@
                     <h3>Share with friends</h3>
                     <p class="share-desc">Send this link to let others open this gallery.</p>
                     <div class="input-with-button share-link-row">
-                        <input type="text" id="share-link-input" readonly>
+                        <input type="text" id="share-link-input" readonly autocomplete="off">
                         <button id="copy-share-link" class="btn-primary" type="button">Copy link</button>
                     </div>
                     <div class="share-hint">The link uses your current page address.</div>
@@ -103,7 +104,10 @@
                 <div class="modal-content">
                     <h3>Password Required</h3>
                     <p>Enter the share password to upload or delete files.</p>
-                    <input type="password" id="password-input" placeholder="Password">
+                    <form onsubmit="return false;">
+                        <input type="text" name="username" autocomplete="username" style="display: none;" tabindex="-1" aria-hidden="true">
+                        <input type="password" id="password-input" placeholder="Password" autocomplete="current-password">
+                    </form>
                     <div class="modal-actions">
                         <button id="password-submit" class="btn-primary">Submit</button>
                         <button id="password-cancel" class="btn-secondary">Cancel</button>
@@ -177,7 +181,7 @@
                     <div class="open-card selector-card">
                         <div class="public-create-row open-row">
                             <div class="input-with-button">
-                                <input type="text" id="gallery-input" placeholder="Enter share name" value="">
+                                <input type="text" id="gallery-input" placeholder="Enter share name" value="" autocomplete="off">
                                 <button id="load-gallery-btn" class="btn-primary">Open</button>
                             </div>
                         </div>
@@ -189,7 +193,7 @@
                             <div class="public-create-row">
                                 <div class="input-with-button has-left-addon narrow">
                                     <button id="public-create-refresh" class="btn-icon" title="Refresh">↻</button>
-                                    <input type="text" id="public-create-name" placeholder="funny-goose-bump" readonly>
+                                    <input type="text" id="public-create-name" placeholder="funny-goose-bump" readonly autocomplete="off">
                                     <button id="public-create-submit" class="btn-primary">Create</button>
                                 </div>
                                 <div class="public-create-help">This is the name of your share. You need to remember it as we don't store any personal data about you (like your e-mail address). If you forget it, you can't open your share later. The name can be copied on the next page and will be stored in your browser locally. The photos will be stored for <span id="public-create-lifetime-days">30</span> days.</div>
@@ -208,15 +212,18 @@
                                             <span>Password required to see photos/videos</span>
                                         </label>
                                         <div class="public-create-password-wrapper" id="public-create-view-password-wrapper" style="display: none;">
-                                            <div class="input-with-button">
-                                                <input type="password" id="public-create-view-password" placeholder="Viewer password">
-                                                <button type="button" class="btn-icon password-toggle" id="public-create-view-password-toggle" aria-label="Show password">
-                                                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                                                        <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
-                                                        <circle cx="12" cy="12" r="3"></circle>
-                                                    </svg>
-                                                </button>
-                                            </div>
+                                            <form onsubmit="return false;">
+                                                <input type="text" name="username" autocomplete="username" style="display: none;" tabindex="-1" aria-hidden="true">
+                                                <div class="input-with-button">
+                                                    <input type="password" id="public-create-view-password" placeholder="Viewer password" autocomplete="new-password">
+                                                    <button type="button" class="btn-icon password-toggle" id="public-create-view-password-toggle" aria-label="Show password">
+                                                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                                            <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
+                                                            <circle cx="12" cy="12" r="3"></circle>
+                                                        </svg>
+                                                    </button>
+                                                </div>
+                                            </form>
                                         </div>
                                     </div>
                                     <div class="public-create-field">
@@ -225,15 +232,18 @@
                                             <span id="public-create-editor-password-label">Special password required to upload or delete photos/videos</span>
                                         </label>
                                         <div class="public-create-password-wrapper" id="public-create-editor-password-wrapper" style="display: none;">
-                                            <div class="input-with-button">
-                                                <input type="password" id="public-create-editor-password" placeholder="Editor password">
-                                                <button type="button" class="btn-icon password-toggle" id="public-create-editor-password-toggle" aria-label="Show password">
-                                                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                                                        <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
-                                                        <circle cx="12" cy="12" r="3"></circle>
-                                                    </svg>
-                                                </button>
-                                            </div>
+                                            <form onsubmit="return false;">
+                                                <input type="text" name="username" autocomplete="username" style="display: none;" tabindex="-1" aria-hidden="true">
+                                                <div class="input-with-button">
+                                                    <input type="password" id="public-create-editor-password" placeholder="Editor password" autocomplete="new-password">
+                                                    <button type="button" class="btn-icon password-toggle" id="public-create-editor-password-toggle" aria-label="Show password">
+                                                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                                            <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
+                                                            <circle cx="12" cy="12" r="3"></circle>
+                                                        </svg>
+                                                    </button>
+                                                </div>
+                                            </form>
                                         </div>
                                     </div>
                                     <div class="public-create-field" id="public-create-viewer-uploads-wrapper" style="display: none;">

@@ -1046,7 +1046,7 @@ function displayGallery(files, hasDirectoriesOverride) {
         const canUpload = userCanUpload();
         const msg = canUpload
             ? 'No files yet. Drag your files here or click Upload.'
-            : 'This share is empty';
+            : 'This share is empty. You do not have the right to upload images/videos. Login with the special password.';
         galleryGrid.innerHTML = `<div class="empty-state"><p>${msg}</p></div>`;
         return;
     }
