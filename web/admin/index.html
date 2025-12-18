@@ -15,12 +15,12 @@
                 <img src="../icon.svg" alt="Admin" class="admin-logo">
                 <h1>Admin Panel</h1>
                 <form id="login-form">
-                    <input type="text" id="admin-username" placeholder="Username" required autofocus>
-                    <input type="password" id="admin-password" placeholder="Password" required>
+                    <input type="text" id="admin-username" placeholder="Username" required autofocus autocomplete="username">
+                    <input type="password" id="admin-password" placeholder="Password" required autocomplete="current-password">
                     <button type="submit" class="btn-primary">Login</button>
                 </form>
                 <div class="login-help">
-                    <small>Forgot password? You have to get file access to the admin directory and delete the .password and .username files to reset it.</small>
+                    <small>Forgot username or password? You have to get file access to the admin directory and delete the .password and .username files to reset it.</small>
                 </div>
                 <div id="login-error" class="error-message" style="display: none;"></div>
             </div>
@@ -77,7 +77,7 @@
                             </div>
                             <div class="form-field">
                                 <label for="contact-email">Contact email</label>
-                                <input type="email" id="contact-email" placeholder="admin@example.com">
+                                <input type="email" id="contact-email" placeholder="admin@example.com" autocomplete="email">
                             </div>
                         </div>
                         <div class="form-field checkbox-field">
@@ -185,9 +185,10 @@
                     <div class="modal-content">
                         <h3>Create New Share</h3>
                         <form id="create-gallery-form">
-                            <input type="text" id="new-gallery-name" placeholder="Share name" required>
-                            <input type="password" id="new-gallery-password" placeholder="Editor password (optional)">
-                            <input type="password" id="new-gallery-view-password" placeholder="Viewer password (optional)">
+                            <input type="text" name="username" autocomplete="username" style="display: none;" tabindex="-1" aria-hidden="true">
+                            <input type="text" id="new-gallery-name" placeholder="Share name" required autocomplete="off">
+                            <input type="password" id="new-gallery-password" placeholder="Editor password (optional)" autocomplete="new-password">
+                            <input type="password" id="new-gallery-view-password" placeholder="Viewer password (optional)" autocomplete="new-password">
                             <div class="form-field checkbox-field">
                                 <label>
                                     <input type="checkbox" id="new-gallery-viewer-uploads">
@@ -207,9 +208,10 @@
                     <div class="modal-content">
                         <h3 id="password-modal-title">Set Password</h3>
                         <form id="set-password-form">
+                            <input type="text" name="username" autocomplete="username" style="display: none;" tabindex="-1" aria-hidden="true">
                             <input type="hidden" id="password-gallery-name">
                             <input type="hidden" id="password-type" value="edit">
-                            <input type="password" id="password-input" placeholder="New password (leave empty to remove password)">
+                            <input type="password" id="password-input" placeholder="New password (leave empty to remove password)" autocomplete="new-password">
                             <div class="modal-actions">
                                 <button type="submit" class="btn-primary" id="password-submit-btn">Set Password</button>
                                 <button type="button" id="remove-password-btn" class="btn-danger" style="display: none;">Remove Password</button>
